@@ -13,10 +13,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Menu, Search, ShoppingCart, User } from "lucide-react"
+import { useSession } from "@/lib/session-context"
 
 export function Header() {
   const [cartCount] = useState(0)
-  const [isLoggedIn] = useState(false) // This will be connected to your Flask auth later
+  const { user, isLoggedIn, logout, isLoading } = useSession()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -61,10 +62,19 @@ export function Header() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              {isLoggedIn ? (
+              {isLoading ? (
+                <DropdownMenuItem disabled>Loading...</DropdownMenuItem>
+              ) : isLoggedIn && user ? (
                 <>
+                  <div className="px-2 py-1.5 text-sm font-medium text-foreground">
+                    {user.first_name} {user.last_name}
+                  </div>
+                  <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                    {user.email}
+                  </div>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
-                    <Link href="/account">My Account</Link>
+                    <Link href="/account?tab=profile">My Account</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
                     <Link href="/account?tab=orders">Order History</Link>
@@ -73,7 +83,7 @@ export function Header() {
                     <Link href="/account?tab=wishlist">Wishlist</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem>Sign Out</DropdownMenuItem>
+                  <DropdownMenuItem onClick={logout}>Sign Out</DropdownMenuItem>
                 </>
               ) : (
                 <>
@@ -125,10 +135,18 @@ export function Header() {
                   Accessories
                 </Link>
                 <div className="border-t pt-4 mt-4">
-                  {isLoggedIn ? (
+                  {isLoading ? (
+                    <div className="text-lg font-medium text-muted-foreground">Loading...</div>
+                  ) : isLoggedIn && user ? (
                     <>
+                      <div className="text-lg font-medium text-foreground mb-1">
+                        {user.first_name} {user.last_name}
+                      </div>
+                      <div className="text-sm text-muted-foreground mb-4">
+                        {user.email}
+                      </div>
                       <Link
-                        href="/account"
+                        href="/account?tab=profile"
                         className="text-lg font-medium hover:text-primary transition-colors block mb-2"
                       >
                         My Account
@@ -136,6 +154,7 @@ export function Header() {
                       <Button
                         variant="ghost"
                         className="text-lg font-medium hover:text-primary transition-colors p-0 h-auto"
+                        onClick={logout}
                       >
                         Sign Out
                       </Button>

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,14 +11,45 @@ import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { User, Package, Settings, Heart } from "lucide-react"
+import { useSession } from "@/lib/session-context"
 
 export default function AccountPage() {
+  const { user, isLoggedIn, isLoading } = useSession()
+  const searchParams = useSearchParams()
+  const [activeTab, setActiveTab] = useState("profile")
   const [profile, setProfile] = useState({
-    firstName: "John",
-    lastName: "Doe",
-    email: "john@example.com",
+    firstName: "",
+    lastName: "",
+    email: "",
     phone: "+1 (555) 123-4567",
   })
+
+  // Update profile when user data is available
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        firstName: user.first_name,
+        lastName: user.last_name,
+        email: user.email,
+        phone: "+1 (555) 123-4567", // This would come from user data in a real app
+      })
+    }
+  }, [user])
+
+  // Redirect if not logged in
+  useEffect(() => {
+    if (!isLoading && !isLoggedIn) {
+      window.location.href = '/login'
+    }
+  }, [isLoggedIn, isLoading])
+
+  // Handle URL parameters for tab switching
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab && ['profile', 'orders', 'wishlist', 'settings'].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   const orders = [
     {
@@ -51,6 +83,27 @@ export default function AccountPage() {
     },
   ]
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container px-4 mx-auto py-8">
+          <div className="flex items-center justify-center h-64">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading...</p>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (!isLoggedIn) {
+    return null // Will redirect via useEffect
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -60,7 +113,7 @@ export default function AccountPage() {
           <p className="text-muted-foreground">Manage your profile, orders, and preferences</p>
         </div>
 
-        <Tabs defaultValue="profile" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <User className="h-4 w-4" />

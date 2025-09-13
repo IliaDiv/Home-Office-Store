@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Eye, EyeOff } from "lucide-react"
+import { useSession } from "@/lib/session-context"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -19,7 +20,9 @@ export default function RegisterPage() {
   const [errors, setErrors] = useState({
     password: "",
     confirmPassword: "",
+    general: "",
   })
+  const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -28,6 +31,14 @@ export default function RegisterPage() {
     confirmPassword: "",
     agreeToTerms: false,
   })
+  const { isLoggedIn } = useSession()
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isLoggedIn) {
+      window.location.href = '/'
+    }
+  }, [isLoggedIn])
 
   const validatePassword = (password: string) => {
     if (password.length < 8) {
@@ -52,14 +63,54 @@ export default function RegisterPage() {
     setErrors({
       password: passwordError,
       confirmPassword: confirmPasswordError,
+      general: "",
     })
 
     if (passwordError || confirmPasswordError) {
       return
     }
 
-    // TODO: Implement registration with Flask backend
-    console.log("Registration attempt:", formData)
+    if (!formData.agreeToTerms) {
+      setErrors(prev => ({ ...prev, general: "You must agree to the terms and conditions" }))
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      console.log('API URL:', apiUrl)
+      console.log('Full URL:', `${apiUrl}/api/register`)
+      const response = await fetch(`${apiUrl}/api/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Registration successful
+        console.log("Registration successful:", data)
+        // Redirect to login page or show success message
+        window.location.href = '/login?registered=true'
+      } else {
+        // Registration failed
+        setErrors(prev => ({ ...prev, general: data.error || "Registration failed" }))
+      }
+    } catch (error) {
+      console.error("Registration error:", error)
+      setErrors(prev => ({ ...prev, general: "Network error. Please try again." }))
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -95,6 +146,11 @@ export default function RegisterPage() {
             </CardHeader>
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-4">
+                {errors.general && (
+                  <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                    {errors.general}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name</Label>
@@ -193,8 +249,8 @@ export default function RegisterPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4">
-                <Button type="submit" className="w-full" disabled={!formData.agreeToTerms}>
-                  Create Account
+                <Button type="submit" className="w-full" disabled={!formData.agreeToTerms || isLoading}>
+                  {isLoading ? "Creating Account..." : "Create Account"}
                 </Button>
                 <p className="text-sm text-center text-muted-foreground">
                   Already have an account?{" "}

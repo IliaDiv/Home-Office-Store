@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,18 +11,72 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Eye, EyeOff } from "lucide-react"
+import { useSession } from "@/lib/session-context"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [successMessage, setSuccessMessage] = useState("")
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   })
+  const { login, isLoggedIn } = useSession()
+
+  // Check for registration success message and redirect if already logged in
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search)
+    if (urlParams.get('registered') === 'true') {
+      setSuccessMessage("Registration successful! Please sign in with your credentials.")
+    }
+    
+    // Redirect if already logged in
+    if (isLoggedIn) {
+      window.location.href = '/'
+    }
+  }, [isLoggedIn])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement login with Flask backend
-    console.log("Login attempt:", formData)
+    setError("")
+    setIsLoading(true)
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+      console.log('API URL:', apiUrl)
+      console.log('Full URL:', `${apiUrl}/api/login`)
+      
+      const response = await fetch(`${apiUrl}/api/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Login successful
+        console.log("Login successful:", data)
+        // Use session context to store user data
+        login(data.user)
+        // Redirect to home page or dashboard
+        window.location.href = '/'
+      } else {
+        // Login failed
+        setError(data.error || "Login failed")
+      }
+    } catch (error) {
+      console.error("Login error:", error)
+      setError("Network error. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -37,6 +91,16 @@ export default function LoginPage() {
             </CardHeader>
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-4">
+                {successMessage && (
+                  <div className="p-3 text-sm text-green-600 bg-green-50 border border-green-200 rounded-md">
+                    {successMessage}
+                  </div>
+                )}
+                {error && (
+                  <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+                    {error}
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -46,6 +110,7 @@ export default function LoginPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     required
+                    disabled={isLoading}
                   />
                 </div>
                 <div className="space-y-2">
@@ -58,6 +123,7 @@ export default function LoginPage() {
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       required
+                      disabled={isLoading}
                     />
                     <Button
                       type="button"
@@ -65,6 +131,7 @@ export default function LoginPage() {
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
+                      disabled={isLoading}
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </Button>
@@ -77,8 +144,8 @@ export default function LoginPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4">
-                <Button type="submit" className="w-full">
-                  Sign In
+                <Button type="submit" className="w-full" disabled={isLoading}>
+                  {isLoading ? "Signing In..." : "Sign In"}
                 </Button>
                 <p className="text-sm text-center text-muted-foreground">
                   Don't have an account?{" "}

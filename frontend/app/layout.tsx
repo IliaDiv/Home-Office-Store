@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Suspense } from "react"
 import { ChatWidget } from "@/components/chat-widget"
+import { SessionProvider } from "@/lib/session-context"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -21,8 +22,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable}`}>
-        <Suspense fallback={null}>{children}</Suspense>
-        <ChatWidget />
+        <SessionProvider>
+          <Suspense fallback={null}>{children}</Suspense>
+          <ChatWidget />
+        </SessionProvider>
       </body>
     </html>
   )

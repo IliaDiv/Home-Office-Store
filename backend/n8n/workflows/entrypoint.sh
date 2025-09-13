@@ -22,6 +22,13 @@ else
   echo "Workflow already exists"
 fi
 
+echo "Importing credentials..."
+# Import credentials
+if [ -f /home/node/.n8n/credentials.json ]; then
+  n8n import:credentials --input=/home/node/.n8n/credentials.json
+fi
+
+
 echo "Starting n8n..."
 # Start n8n in background
 n8n start &
