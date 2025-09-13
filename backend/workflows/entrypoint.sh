@@ -1,0 +1,40 @@
+#!/bin/sh
+set -e
+
+echo "Waiting for Postgres to be ready..."
+# Use nc (netcat) which is available in Alpine Linux
+until nc -z ${DB_POSTGRESDB_HOST:-postgres} ${DB_POSTGRESDB_PORT:-5432}; do
+  echo "Postgres is unavailable - sleeping"
+  sleep 2
+done
+echo "Postgres is up - executing command"
+
+echo "Initializing n8n database..."
+# n8n CLI automatically creates DB schema in Postgres on first run
+# User creation will be handled through the web interface on first access
+
+echo "Importing workflow..."
+# Import the workflow if it doesn't exist
+if [ ! -f /home/node/.n8n/workflows.json ] || ! grep -q "h0INmbJOQ71cq6NQ" /home/node/.n8n/workflows.json 2>/dev/null; then
+  echo "Workflow not found, importing..."
+  n8n import:workflow --input=/workflows/my-workflow.json
+else
+  echo "Workflow already exists"
+fi
+
+echo "Starting n8n..."
+# Start n8n in background
+n8n start &
+N8N_PID=$!
+
+# Wait for n8n to be ready
+echo "Waiting for n8n to be ready..."
+sleep 10
+
+# Activate the workflow
+echo "Activating workflow..."
+N8N_API_KEY=${N8N_API_KEY:-n8n-api-key-12345} node /workflows/activate-workflow.js
+n8n update:workflow --all --active=true
+
+# Wait for the background process
+wait $N8N_PID
