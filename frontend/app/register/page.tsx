@@ -13,6 +13,7 @@ import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { Eye, EyeOff } from "lucide-react"
 import { useSession } from "@/lib/session-context"
+import { getApiUrl } from "@/lib/config"
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
@@ -78,10 +79,7 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-      console.log('API URL:', apiUrl)
-      console.log('Full URL:', `${apiUrl}/api/register`)
-      const response = await fetch(`${apiUrl}/api/register`, {
+      const response = await fetch(getApiUrl('register'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

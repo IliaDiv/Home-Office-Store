@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { MessageCircle, X, Send } from "lucide-react"
+import { getApiUrl } from "@/lib/config"
+import { useSession } from "@/lib/session-context"
 
 interface Message {
   id: string
@@ -16,6 +18,7 @@ interface Message {
 }
 
 export function ChatWidget() {
+  const { user } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -54,14 +57,15 @@ export function ChatWidget() {
     setIsTyping(true)
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/webhook/chat`, {
+      const response = await fetch('/api/webhook/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           message: currentInput,
-          sessionId: sessionId
+          sessionId: sessionId,
+          userId: user?.id
         })
       })
 

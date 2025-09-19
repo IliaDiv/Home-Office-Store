@@ -28,7 +28,6 @@ if [ -f /home/node/.n8n/credentials.json ]; then
   n8n import:credentials --input=/home/node/.n8n/credentials.json
 fi
 
-
 echo "Starting n8n..."
 # Start n8n in background
 n8n start &
@@ -38,10 +37,26 @@ N8N_PID=$!
 echo "Waiting for n8n to be ready..."
 sleep 10
 
+# Wait until n8n REST API is ready
+echo "Waiting for n8n REST API to be ready..."
+until curl -s -o /dev/null -H "X-N8N-API-KEY: $N8N_API_KEY" http://localhost:5678/api/v1/workflows; do
+  echo "n8n not ready yet... sleeping 2s"
+  sleep 2
+done
+echo "n8n is ready!"
+
 # Activate the workflow
 echo "Activating workflow..."
-N8N_API_KEY=${N8N_API_KEY:-n8n-api-key-12345} node /workflows/activate-workflow.js
+export N8N_API_KEY=${N8N_API_KEY:-n8n-api-key-12345}
+# Activate all workflows using n8n CLI
 n8n update:workflow --all --active=true
+echo "✅ Workflows activated successfully!"
 
-# Wait for the background process
-wait $N8N_PID
+# Stop n8n to apply the activation changes
+echo "Stopping n8n to apply workflow activation changes..."
+kill $N8N_PID
+wait $N8N_PID 2>/dev/null || true
+
+# Start n8n again with activated workflows
+echo "Restarting n8n with activated workflows..."
+n8n start

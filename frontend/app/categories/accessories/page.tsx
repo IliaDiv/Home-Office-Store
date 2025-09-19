@@ -1,9 +1,24 @@
+"use client"
+
+import { useState } from "react"
 import { Header } from "@/components/header"
 import { ProductGrid } from "@/components/product-grid"
-import { CategoryFilters } from "@/components/category-filters"
+import { ProductFilters } from "@/components/product-filters"
 import { Footer } from "@/components/footer"
 
 export default function AccessoriesPage() {
+  const [filters, setFilters] = useState({
+    category: 'Accessories',
+    search: '',
+    minPrice: undefined as number | undefined,
+    maxPrice: undefined as number | undefined,
+    woodType: '',
+  })
+
+  const handleFilterChange = (newFilters: Partial<typeof filters>) => {
+    setFilters(prev => ({ ...prev, ...newFilters }))
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -16,10 +31,19 @@ export default function AccessoriesPage() {
         </div>
         <div className="grid lg:grid-cols-4 gap-8">
           <aside className="lg:col-span-1">
-            <CategoryFilters category="accessories" />
+            <ProductFilters 
+              onFilterChange={handleFilterChange}
+              currentFilters={filters}
+            />
           </aside>
           <div className="lg:col-span-3">
-            <ProductGrid category="accessories" />
+            <ProductGrid 
+              category={filters.category}
+              search={filters.search}
+              minPrice={filters.minPrice}
+              maxPrice={filters.maxPrice}
+              woodType={filters.woodType}
+            />
           </div>
         </div>
       </main>

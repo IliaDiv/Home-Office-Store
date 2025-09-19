@@ -110,7 +110,7 @@
             "entries": [
               {
                 "name": "Content-Type",
-                "value": "text/plain"
+                "value": "application/json"
               }
             ]
           }

@@ -14,10 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Menu, Search, ShoppingCart, User } from "lucide-react"
 import { useSession } from "@/lib/session-context"
+import { useCart } from "@/lib/cart-context"
 
 export function Header() {
-  const [cartCount] = useState(0)
   const { user, isLoggedIn, logout, isLoading } = useSession()
+  const { itemCount } = useCart()
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -51,9 +52,24 @@ export function Header() {
 
         {/* Actions */}
         <div className="flex items-center space-x-4">
-          <Button variant="ghost" size="icon" className="hidden sm:flex">
-            <Search className="h-5 w-5" />
-          </Button>
+          <div className="hidden sm:flex items-center space-x-2">
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="px-3 py-2 border border-input rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:border-transparent w-64"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const searchTerm = (e.target as HTMLInputElement).value
+                  if (searchTerm.trim()) {
+                    window.location.href = `/products?search=${encodeURIComponent(searchTerm.trim())}`
+                  }
+                }
+              }}
+            />
+            <Button variant="ghost" size="icon">
+              <Search className="h-5 w-5" />
+            </Button>
+          </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -98,13 +114,15 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Button variant="ghost" size="icon" className="relative">
-            <ShoppingCart className="h-5 w-5" />
-            {cartCount > 0 && (
-              <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
-                {cartCount}
-              </Badge>
-            )}
+          <Button variant="ghost" size="icon" className="relative" asChild>
+            <Link href="/cart">
+              <ShoppingCart className="h-5 w-5" />
+              {itemCount > 0 && (
+                <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                  {itemCount}
+                </Badge>
+              )}
+            </Link>
           </Button>
 
           {/* Mobile Menu */}
