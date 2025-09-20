@@ -107,6 +107,11 @@ export default function CheckoutPage() {
       setOrderId(response.order.id)
       setOrderComplete(true)
       await clearCart()
+      
+      // Redirect to account orders page after successful order
+      setTimeout(() => {
+        router.push('/account?tab=orders')
+      }, 2000) // 2 second delay to show success message
     } catch (error) {
       console.error('Error creating order:', error)
       alert('There was an error processing your order. Please try again.')
@@ -133,6 +138,9 @@ export default function CheckoutPage() {
             <h1 className="text-3xl font-bold mb-4">Order Confirmed!</h1>
             <p className="text-lg text-muted-foreground mb-6">
               Thank you for your order. Your order #{orderId} has been placed successfully.
+            </p>
+            <p className="text-sm text-muted-foreground mb-6">
+              You will be redirected to your order details in a moment...
             </p>
             <div className="space-y-4">
               <Button asChild size="lg">

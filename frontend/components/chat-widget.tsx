@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { MessageCircle, X, Send } from "lucide-react"
 import { getApiUrl } from "@/lib/config"
 import { useSession } from "@/lib/session-context"
+import { apiService } from "@/lib/api"
 
 interface Message {
   id: string
@@ -18,7 +19,7 @@ interface Message {
 }
 
 export function ChatWidget() {
-  const { user } = useSession()
+  const { user, isLoggedIn, isLoading } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -57,23 +58,7 @@ export function ChatWidget() {
     setIsTyping(true)
 
     try {
-      const response = await fetch('/api/webhook/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: currentInput,
-          sessionId: sessionId,
-          userId: user?.id
-        })
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to get response from server')
-      }
-
-      const data = await response.json()
+      const data = await apiService.sendMessage(currentInput, sessionId)
       
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
@@ -103,6 +88,11 @@ export function ChatWidget() {
       e.preventDefault()
       handleSendMessage()
     }
+  }
+
+  // Don't render chat widget if user is not logged in or still loading
+  if (isLoading || !isLoggedIn) {
+    return null
   }
 
   return (

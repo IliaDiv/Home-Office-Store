@@ -8,6 +8,8 @@ import redis
 import psycopg2
 import bcrypt
 from psycopg2.extras import RealDictCursor
+import threading
+import time
 
 app = Flask(__name__)
 # Read allowed origins from env (comma-separated)
@@ -29,8 +31,8 @@ DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'postgres'),
     'port': os.getenv('DB_PORT', '5432'),
     'database': os.getenv('DB_NAME', 'home_office_store'),
-    'user': os.getenv('DB_USER', 'n8n'),
-    'password': os.getenv('DB_PASSWORD', 'n8n')
+    'user': os.getenv('DB_USER', 'postgres'),
+    'password': os.getenv('DB_PASSWORD', 'postgres')
 }
 
 class DatabaseManager:
@@ -48,6 +50,8 @@ class DatabaseManager:
     
     def create_database_and_tables(self):
         """Create database and tables if they don't exist"""
+        print("Starting database initialization...")
+        print(f"Database config: {self.config}")
         try:
             # First connect to default postgres database to create our database
             default_config = self.config.copy()
@@ -67,8 +71,10 @@ class DatabaseManager:
             conn.close()
             
             # Now connect to our database and create tables
+            print("Connecting to target database...")
             conn = self.get_connection()
             if conn:
+                print("Connected to target database, creating tables...")
                 cursor = conn.cursor()
                 
                 # Create users table
@@ -130,6 +136,7 @@ class DatabaseManager:
                     CREATE TABLE IF NOT EXISTS orders (
                         id SERIAL PRIMARY KEY,
                         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        product_details JSONB,
                         total_amount DECIMAL(10,2) NOT NULL,
                         status VARCHAR(50) DEFAULT 'pending',
                         shipping_address TEXT,
@@ -208,17 +215,144 @@ class DatabaseManager:
                     )
                 """)
                 
+                # Create chat_sessions table
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS chat_sessions (
+                        id SERIAL PRIMARY KEY,
+                        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                        session_id VARCHAR(255) NOT NULL,
+                        message TEXT,
+                        response TEXT,
+                        timestamp TIMESTAMP DEFAULT NOW()
+                    )
+                """)
+                
+                # Create indexes for chat_sessions table
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_session 
+                    ON chat_sessions (session_id)
+                """)
+                
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_user_id 
+                    ON chat_sessions (user_id)
+                """)
+                
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_timestamp 
+                    ON chat_sessions (timestamp)
+                """)
+                
+                # Add user_id column if it doesn't exist (for existing databases)
+                cursor.execute("""
+                    ALTER TABLE chat_sessions 
+                    ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
+                """)
+                
+                # Create index for user_id if it doesn't exist
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_user_id 
+                    ON chat_sessions (user_id)
+                """)
+                
+                # Migration: Update orders table schema from order_name to product_details
+                cursor.execute("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'orders' 
+                    AND column_name IN ('order_name', 'product_details')
+                """)
+                columns = [row[0] for row in cursor.fetchall()]
+                
+                if 'order_name' in columns and 'product_details' not in columns:
+                    print("Migrating orders table: removing order_name, adding product_details")
+                    # Add product_details column
+                    cursor.execute("""
+                        ALTER TABLE orders 
+                        ADD COLUMN product_details JSONB
+                    """)
+                    
+                    # For existing orders, populate product_details with empty array
+                    cursor.execute("""
+                        UPDATE orders 
+                        SET product_details = '[]'::jsonb 
+                        WHERE product_details IS NULL
+                    """)
+                    
+                    # Remove order_name column
+                    cursor.execute("""
+                        ALTER TABLE orders 
+                        DROP COLUMN order_name
+                    """)
+                    print("Orders table migration completed")
+                
                 conn.commit()
                 cursor.close()
                 conn.close()
-                print("Users table created successfully")
+                print("All tables created successfully")
                 
         except psycopg2.Error as e:
             print(f"Database setup error: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def cleanup_old_chat_sessions(self, minutes=15):
+        """Delete chat sessions older than specified minutes"""
+        try:
+            conn = self.get_connection()
+            if not conn:
+                return {"success": False, "error": "Database connection failed"}
+            
+            cursor = conn.cursor()
+            
+            # Delete sessions older than specified minutes
+            cursor.execute("""
+                DELETE FROM chat_sessions 
+                WHERE timestamp < NOW() - INTERVAL '%s minutes'
+            """, (minutes,))
+            
+            deleted_count = cursor.rowcount
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            
+            return {
+                "success": True, 
+                "deleted_count": deleted_count,
+                "message": f"Deleted {deleted_count} chat sessions older than {minutes} minutes"
+            }
+            
+        except psycopg2.Error as e:
+            print(f"Database error during cleanup: {e}")
+            return {"success": False, "error": "Database error occurred"}
 
 class UserService:
     def __init__(self):
         self.db = DatabaseManager()
+    
+    def user_exists(self, user_id):
+        """Check if a user exists in the database"""
+        try:
+            print(f"Checking if user {user_id} exists")
+            conn = self.db.get_connection()
+            if not conn:
+                print("Database connection failed")
+                return False
+            
+            cursor = conn.cursor()
+            cursor.execute("SELECT id FROM users WHERE id = %s", (user_id,))
+            user_exists = cursor.fetchone() is not None
+            cursor.close()
+            conn.close()
+            
+            print(f"User {user_id} exists: {user_exists}")
+            return user_exists
+        except psycopg2.Error as e:
+            print(f"Database error checking user existence: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
     
     def hash_password(self, password):
         """Hash password using bcrypt"""
@@ -574,6 +708,10 @@ class CartService:
     def get_cart(self, user_id):
         """Get user's cart with product details"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -605,6 +743,10 @@ class CartService:
     def add_to_cart(self, user_id, product_id, quantity=1):
         """Add item to cart or update quantity if exists"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -647,6 +789,10 @@ class CartService:
     def update_cart_item(self, user_id, product_id, quantity):
         """Update cart item quantity"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -680,6 +826,10 @@ class CartService:
     def clear_cart(self, user_id):
         """Clear user's cart"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -703,19 +853,36 @@ class OrderService:
     def create_order(self, user_id, order_data):
         """Create a new order from cart items"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
             
             cursor = conn.cursor()
             
+            # Get product names and quantities for the order items
+            product_details = []
+            for item in order_data['items']:
+                cursor.execute("SELECT name FROM products WHERE id = %s", (item['product_id'],))
+                product_result = cursor.fetchone()
+                if product_result:
+                    product_details.append({
+                        'product_name': product_result[0],
+                        'quantity': item['quantity'],
+                        'price': float(item['price'])
+                    })
+            
             # Create order
             cursor.execute("""
-                INSERT INTO orders (user_id, total_amount, status, shipping_address, billing_address, payment_method, payment_status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO orders (user_id, product_details, total_amount, status, shipping_address, billing_address, payment_method, payment_status)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, created_at
             """, (
                 user_id,
+                json.dumps(product_details),
                 order_data['total_amount'],
                 'pending',
                 order_data.get('shipping_address', ''),
@@ -745,6 +912,7 @@ class OrderService:
                 "success": True,
                 "order": {
                     "id": order_id,
+                    "product_details": product_details,
                     "total_amount": order_data['total_amount'],
                     "status": "pending",
                     "created_at": created_at.isoformat()
@@ -758,13 +926,18 @@ class OrderService:
     def get_user_orders(self, user_id):
         """Get all orders for a user"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
             
             cursor = conn.cursor(cursor_factory=RealDictCursor)
             cursor.execute("""
-                SELECT o.*, 
+                SELECT o.id, o.product_details, o.total_amount, o.status, o.shipping_address, 
+                       o.billing_address, o.payment_method, o.payment_status, o.created_at, o.updated_at,
                        COALESCE(
                            json_agg(
                                json_build_object(
@@ -782,7 +955,8 @@ class OrderService:
                 LEFT JOIN order_items oi ON o.id = oi.order_id
                 LEFT JOIN products p ON oi.product_id = p.id
                 WHERE o.user_id = %s
-                GROUP BY o.id
+                GROUP BY o.id, o.product_details, o.total_amount, o.status, o.shipping_address, 
+                         o.billing_address, o.payment_method, o.payment_status, o.created_at, o.updated_at
                 ORDER BY o.created_at DESC
             """, (user_id,))
             
@@ -811,6 +985,10 @@ class WishlistService:
     def add_to_wishlist(self, user_id, product_id):
         """Add product to user's wishlist"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -840,6 +1018,10 @@ class WishlistService:
     def remove_from_wishlist(self, user_id, product_id):
         """Remove product from user's wishlist"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -863,6 +1045,10 @@ class WishlistService:
     def get_wishlist(self, user_id):
         """Get user's wishlist with product details"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -900,6 +1086,10 @@ class ReviewService:
     def add_review(self, user_id, product_id, rating, title, comment):
         """Add or update a product review"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -1003,6 +1193,10 @@ class TicketService:
     def create_ticket(self, user_id, category, description, priority='medium'):
         """Create a new support ticket"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -1043,6 +1237,10 @@ class TicketService:
     def get_user_tickets(self, user_id):
         """Get all tickets for a user"""
         try:
+            # Validate user exists first
+            if not user_service.user_exists(user_id):
+                return {"success": False, "error": "User not found"}
+            
             conn = self.db.get_connection()
             if not conn:
                 return {"success": False, "error": "Database connection failed"}
@@ -1076,15 +1274,51 @@ class CustomerSupportService:
     def __init__(self):
         self.n8n_url = N8N_WEBHOOK_URL
     
-    def process_customer_query(self, user_message, session_id=None):
-        """Send customer query to n8n workflow"""
+    def process_customer_query(self, user_message, session_id=None, user_id=None):
+        """Send customer query to n8n workflow with user orders if available"""
         if not session_id:
             session_id = str(uuid.uuid4())
+        
+        # Retrieve user's purchased product names if user_id is provided
+        user_product_names = []
+        if user_id:
+            try:
+                print(f"Retrieving purchased product names for user {user_id}")
+                # Get a simple list of product names the user has ordered
+                conn = DatabaseManager().get_connection()
+                if conn:
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        SELECT DISTINCT p.name 
+                        FROM orders o
+                        LEFT JOIN order_items oi ON o.id = oi.order_id
+                        LEFT JOIN products p ON oi.product_id = p.id
+                        WHERE o.user_id = %s AND p.name IS NOT NULL
+                        ORDER BY p.name
+                    """, (user_id,))
+                    
+                    product_names = cursor.fetchall()
+                    user_product_names = [row[0] for row in product_names]
+                    cursor.close()
+                    conn.close()
+                    
+                    print(f"Successfully retrieved {len(user_product_names)} unique product names for user {user_id}")
+                    print(f"Products: {', '.join(user_product_names)}")
+                else:
+                    print("Database connection failed")
+            except Exception as e:
+                print(f"Error retrieving product names for user {user_id}: {e}")
+                import traceback
+                traceback.print_exc()
+        else:
+            print("No user_id provided, skipping product name retrieval")
         
         payload = {
             "query": {
                 "sessionId": session_id,
-                "chatInput": user_message
+                "chatInput": user_message,
+                "userId": user_id,
+                "userProductNames": user_product_names
             }
         }
         
@@ -1118,8 +1352,29 @@ wishlist_service = WishlistService()
 review_service = ReviewService()
 ticket_service = TicketService()
 
-def populate_sample_products():
-    """Populate database with sample products"""
+def background_cleanup():
+    """Background task to cleanup old chat sessions every hour"""
+    while True:
+        try:
+            # Wait for 1 hour (3600 seconds)
+            time.sleep(900)
+            
+            # Cleanup sessions older than 15 minutes
+            db_manager = DatabaseManager()
+            result = db_manager.cleanup_old_chat_sessions(15)
+            
+            if result["success"]:
+                print(f"Background cleanup: {result['message']}")
+            else:
+                print(f"Background cleanup failed: {result['error']}")
+                
+        except Exception as e:
+            print(f"Error in background cleanup: {e}")
+            # Continue running even if cleanup fails
+            time.sleep(60)  # Wait 1 minute before retrying
+
+def populate_sample_data():
+    """Populate database with sample products and a test user"""
     try:
         conn = DatabaseManager().get_connection()
         if not conn:
@@ -1129,9 +1384,28 @@ def populate_sample_products():
         
         # Check if products already exist
         cursor.execute("SELECT COUNT(*) FROM products")
-        count = cursor.fetchone()[0]
+        product_count = cursor.fetchone()[0]
         
-        if count > 0:
+        # Check if users already exist
+        cursor.execute("SELECT COUNT(*) FROM users")
+        user_count = cursor.fetchone()[0]
+        
+        # Create a test user if no users exist
+        if user_count == 0:
+            print("Creating test user...")
+            user_service = UserService()
+            test_user_result = user_service.create_user(
+                first_name="Test",
+                last_name="User", 
+                email="test@example.com",
+                password="password123"
+            )
+            if test_user_result["success"]:
+                print(f"Test user created with ID: {test_user_result['user']['id']}")
+            else:
+                print(f"Failed to create test user: {test_user_result['error']}")
+        
+        if product_count > 0:
             print("Products already exist, skipping population")
             cursor.close()
             conn.close()
@@ -1315,13 +1589,22 @@ def populate_sample_products():
 
 # Initialize database and tables
 try:
+    print("Initializing database...")
     db_manager = DatabaseManager()
     db_manager.create_database_and_tables()
-    populate_sample_products()
+    print("Populating sample data...")
+    populate_sample_data()
     print("Database initialization completed successfully")
 except Exception as e:
     print(f"Database initialization failed: {e}")
+    import traceback
+    traceback.print_exc()
     # Continue running even if database init fails
+
+# Start background cleanup thread
+cleanup_thread = threading.Thread(target=background_cleanup, daemon=True)
+cleanup_thread.start()
+print("Background cleanup thread started")
 
 
 @app.route("/")
@@ -1332,6 +1615,47 @@ def home():
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "healthy", "message": "Backend is running"})
+
+
+@app.route("/api/debug/user-status", methods=["GET"])
+def debug_user_status():
+    """Debug endpoint to check user status and database state"""
+    try:
+        user_id = request.headers.get('X-User-ID')
+        
+        # Check database connection
+        conn = DatabaseManager().get_connection()
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
+        
+        cursor = conn.cursor()
+        
+        # Get total user count
+        cursor.execute("SELECT COUNT(*) FROM users")
+        total_users = cursor.fetchone()[0]
+        
+        # Get all users
+        cursor.execute("SELECT id, first_name, last_name, email FROM users ORDER BY id")
+        users = cursor.fetchall()
+        
+        # Check if specific user exists
+        user_exists = False
+        if user_id:
+            cursor.execute("SELECT id FROM users WHERE id = %s", (int(user_id),))
+            user_exists = cursor.fetchone() is not None
+        
+        cursor.close()
+        conn.close()
+        
+        return jsonify({
+            "user_id_from_header": user_id,
+            "user_exists": user_exists,
+            "total_users": total_users,
+            "all_users": [{"id": u[0], "name": f"{u[1]} {u[2]}", "email": u[3]} for u in users]
+        })
+        
+    except Exception as e:
+        return jsonify({"error": f"Debug error: {str(e)}"}), 500
 
 
 @app.route("/api/test", methods=["GET", "POST"])
@@ -1431,13 +1755,17 @@ def chat():
         data = request.get_json()
         user_message = data.get("message", "")
         session_id = data.get("sessionId")
-        user_id = data.get("userId")  # Get user_id from request
+        user_id = data.get("userId")  # Get user_id from request body
+        
+        # Also check for user_id in headers as fallback
+        if not user_id:
+            user_id = request.headers.get('X-User-ID')
         
         if not user_message:
             return jsonify({"error": "Message is required"}), 400
         
         # Process the message through the customer support service
-        result = support_service.process_customer_query(user_message, session_id)
+        result = support_service.process_customer_query(user_message, session_id, user_id)
         
         # If the AI response contains ticket data and we have a user_id, create a ticket
         ticket_data = result.get("ticket")
@@ -1445,18 +1773,30 @@ def chat():
         
         if ticket_data and user_id:
             try:
-                ticket_result = ticket_service.create_ticket(
-                    user_id=user_id,
-                    category=ticket_data.get("category", "general"),
-                    description=ticket_data.get("description", ""),
-                    priority="medium"
-                )
-                
-                if ticket_result.get("success"):
-                    created_ticket = ticket_result.get("ticket")
-                    print(f"Created ticket {created_ticket['id']} for user {user_id}")
-                else:
-                    print(f"Failed to create ticket: {ticket_result.get('error')}")
+                # Validate that the user exists before creating a ticket
+                conn = DatabaseManager().get_connection()
+                if conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT id FROM users WHERE id = %s", (user_id,))
+                    user_exists = cursor.fetchone()
+                    cursor.close()
+                    conn.close()
+                    
+                    if not user_exists:
+                        print(f"User {user_id} does not exist, skipping ticket creation")
+                    else:
+                        ticket_result = ticket_service.create_ticket(
+                            user_id=user_id,
+                            category=ticket_data.get("category", "general"),
+                            description=ticket_data.get("description", ""),
+                            priority="medium"
+                        )
+                        
+                        if ticket_result.get("success"):
+                            created_ticket = ticket_result.get("ticket")
+                            print(f"Created ticket {created_ticket['id']} for user {user_id}")
+                        else:
+                            print(f"Failed to create ticket: {ticket_result.get('error')}")
             except Exception as e:
                 print(f"Error creating ticket: {e}")
         
@@ -1582,16 +1922,22 @@ def add_to_cart():
         data = request.get_json()
         user_id = request.headers.get('X-User-ID')
         
+        print(f"Cart add request - user_id: {user_id}, data: {data}")
+        
         if not user_id:
+            print("No user ID provided in headers")
             return jsonify({"error": "User ID required"}), 401
         
         if not data or not data.get('product_id'):
+            print("No product ID provided in request body")
             return jsonify({"error": "Product ID required"}), 400
         
         product_id = data.get('product_id')
         quantity = data.get('quantity', 1)
         
+        print(f"Calling cart_service.add_to_cart with user_id={user_id}, product_id={product_id}, quantity={quantity}")
         result = cart_service.add_to_cart(int(user_id), product_id, quantity)
+        print(f"Cart service result: {result}")
         
         if result["success"]:
             return jsonify({"message": result["message"]})
@@ -1600,7 +1946,9 @@ def add_to_cart():
             
     except Exception as e:
         print(f"Error in add_to_cart endpoint: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
 @app.route("/api/cart/update", methods=["PUT"])
@@ -1743,15 +2091,21 @@ def add_to_wishlist():
         data = request.get_json()
         user_id = request.headers.get('X-User-ID')
         
+        print(f"Wishlist add request - user_id: {user_id}, data: {data}")
+        
         if not user_id:
+            print("No user ID provided in headers")
             return jsonify({"error": "User ID required"}), 401
         
         if not data or not data.get('product_id'):
+            print("No product ID provided in request body")
             return jsonify({"error": "Product ID required"}), 400
         
         product_id = data.get('product_id')
         
+        print(f"Calling wishlist_service.add_to_wishlist with user_id={user_id}, product_id={product_id}")
         result = wishlist_service.add_to_wishlist(int(user_id), product_id)
+        print(f"Wishlist service result: {result}")
         
         if result["success"]:
             return jsonify({"message": result["message"]})
@@ -1760,7 +2114,9 @@ def add_to_wishlist():
             
     except Exception as e:
         print(f"Error in add_to_wishlist endpoint: {e}")
-        return jsonify({"error": "Internal server error"}), 500
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
 
 
 @app.route("/api/wishlist/remove", methods=["DELETE"])
@@ -1921,6 +2277,34 @@ def update_profile():
             
     except Exception as e:
         print(f"Error in update_profile endpoint: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+# Chat session cleanup endpoint
+@app.route("/api/admin/cleanup-sessions", methods=["POST"])
+def cleanup_chat_sessions():
+    try:
+        data = request.get_json() or {}
+        minutes = data.get('minutes', 15)  # Default to 15 minutes
+        
+        # Validate minutes parameter
+        if not isinstance(minutes, int) or minutes < 1:
+            return jsonify({"error": "Minutes must be a positive integer"}), 400
+        
+        # Use the database manager to cleanup old sessions
+        db_manager = DatabaseManager()
+        result = db_manager.cleanup_old_chat_sessions(minutes)
+        
+        if result["success"]:
+            return jsonify({
+                "message": result["message"],
+                "deleted_count": result["deleted_count"]
+            })
+        else:
+            return jsonify({"error": result["error"]}), 500
+            
+    except Exception as e:
+        print(f"Error in cleanup_chat_sessions endpoint: {e}")
         return jsonify({"error": "Internal server error"}), 500
 
 

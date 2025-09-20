@@ -22,10 +22,65 @@ else
   echo "Workflow already exists"
 fi
 
-echo "Importing credentials..."
-# Import credentials
-if [ -f /home/node/.n8n/credentials.json ]; then
-  n8n import:credentials --input=/home/node/.n8n/credentials.json
+echo "Setting up credentials from environment variables..."
+# Create credentials directory if it doesn't exist
+mkdir -p /home/node/.n8n/credentials
+
+# Check if OpenAI credentials already exist in n8n
+if ! n8n list:credentials | grep -q "openai-env-credentials" 2>/dev/null; then
+  # Create OpenAI credentials file from environment variable
+  if [ -n "$OPENAI_API_KEY" ]; then
+    cat > /home/node/.n8n/credentials/openai-env-credentials.json << EOF
+[
+  {
+    "id": "openai-env-credentials",
+    "name": "OpenAI Environment Credentials",
+    "type": "openAiApi",
+    "data": {
+      "apiKey": "$OPENAI_API_KEY"
+    }
+  }
+]
+EOF
+    echo "✅ OpenAI credentials created from environment variable"
+    # Import the credentials
+    n8n import:credentials --input=/home/node/.n8n/credentials/openai-env-credentials.json
+  else
+    echo "⚠️  Warning: OPENAI_API_KEY environment variable not set"
+  fi
+else
+  echo "✅ OpenAI credentials already exist, skipping import"
+fi
+
+# Check if PostgreSQL credentials already exist in n8n
+if ! n8n list:credentials | grep -q "postgres-env-credentials" 2>/dev/null; then
+  # Create PostgreSQL credentials file from environment variables
+  if [ -n "$DB_POSTGRESDB_HOST" ] && [ -n "$DB_POSTGRESDB_DATABASE" ] && [ -n "$DB_POSTGRESDB_USER" ] && [ -n "$DB_POSTGRESDB_PASSWORD" ]; then
+    cat > /home/node/.n8n/credentials/postgres-env-credentials.json << EOF
+[
+  {
+    "id": "postgres-env-credentials",
+    "name": "Postgres Environment Credentials",
+    "type": "postgres",
+    "data": {
+      "host": "$DB_POSTGRESDB_HOST",
+      "port": "$DB_POSTGRESDB_PORT",
+      "database": "$DB_POSTGRESDB_DATABASE",
+      "user": "$DB_POSTGRESDB_USER",
+      "password": "$DB_POSTGRESDB_PASSWORD",
+      "ssl": "disable"
+    }
+  }
+]
+EOF
+    echo "✅ PostgreSQL credentials created from environment variables"
+    # Import the credentials
+    n8n import:credentials --input=/home/node/.n8n/credentials/postgres-env-credentials.json
+  else
+    echo "⚠️  Warning: Database environment variables not set (DB_POSTGRESDB_HOST, DB_POSTGRESDB_DATABASE, DB_POSTGRESDB_USER, DB_POSTGRESDB_PASSWORD)"
+  fi
+else
+  echo "✅ PostgreSQL credentials already exist, skipping import"
 fi
 
 echo "Starting n8n..."

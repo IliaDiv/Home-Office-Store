@@ -37,9 +37,16 @@ export interface Category {
   count: number
 }
 
+export interface ProductDetail {
+  product_name: string
+  quantity: number
+  price: number
+}
+
 export interface Order {
   id: number
   user_id: number
+  product_details: ProductDetail[]
   total_amount: number
   status: string
   shipping_address: string
@@ -242,6 +249,16 @@ class ApiService {
     ticket?: string
     sessionId: string
   }> {
+    const currentUser = this.getCurrentUser()
+    const userId = currentUser?.id
+    
+    console.log('Sending chat message:', {
+      message,
+      sessionId: sessionId || this.generateSessionId(),
+      userId,
+      user: currentUser
+    })
+    
     return this.request<{
       reply: string
       ticket?: string
@@ -251,6 +268,7 @@ class ApiService {
       body: JSON.stringify({
         message,
         sessionId: sessionId || this.generateSessionId(),
+        userId: userId
       }),
     })
   }

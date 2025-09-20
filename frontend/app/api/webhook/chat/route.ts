@@ -12,15 +12,26 @@ export async function POST(request: NextRequest) {
     // Get backend URL - use BACKEND_SERVICE_URL for server-side requests
     const backendUrl = process.env.BACKEND_SERVICE_URL || 'http://localhost:5000'
     
+    // Extract user ID from the request body (passed from frontend)
+    const userId = body.userId
+    
+    // Prepare the payload for the backend
+    const backendPayload = {
+      message: body.message,
+      sessionId: body.sessionId,
+      userId: userId
+    }
+    
     console.log(`Forwarding chat request to: ${backendUrl}/api/webhook/chat`)
-    console.log('Request body:', JSON.stringify(body, null, 2))
+    console.log('Request body:', JSON.stringify(backendPayload, null, 2))
     
     const response = await fetch(`${backendUrl}/api/webhook/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(userId && { 'X-User-ID': userId.toString() })
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(backendPayload),
     })
 
     console.log(`Backend response status: ${response.status}`)
