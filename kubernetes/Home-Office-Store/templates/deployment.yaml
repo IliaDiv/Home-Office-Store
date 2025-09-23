@@ -64,6 +64,45 @@ spec:
           limits:
             memory: {{ .Values.backend.resources.limits.memory }}
             cpu: {{ .Values.backend.resources.limits.cpu }}
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: {{ .Values.backend.flaskBackend.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /api/health
+            port: {{ .Values.backend.flaskBackend.port }}
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 30
+      initContainers:
+      - name: db-wait
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          until nc -z ${DB_HOST} ${DB_PORT}; do
+            echo "Waiting for database to be ready..."
+            sleep 2
+          done
+          echo "Database is ready!"
+        env:
+        - name: DB_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.cm.name }}
+              key: db_host
+        - name: DB_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.cm.name }}
+              key: db_port
 
 ---
 # Frontend Deployment
@@ -103,6 +142,22 @@ spec:
           limits:
             memory: {{ .Values.frontend.resources.limits.memory }}
             cpu: {{ .Values.frontend.resources.limits.cpu }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.frontend.reactFrontend.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /
+            port: {{ .Values.frontend.reactFrontend.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
 
 ---
 # N8N Deployment
@@ -178,3 +233,19 @@ spec:
           limits:
             memory: {{ .Values.n8n.resources.limits.memory }}
             cpu: {{ .Values.n8n.resources.limits.cpu }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.n8n.n8n.port }}
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: {{ .Values.n8n.n8n.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 30
