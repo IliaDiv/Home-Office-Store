@@ -1,0 +1,25 @@
+# N8N ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{.Values.n8nCm.name}}
+data:
+  envn8n: |
+    {{ .Values.n8nCm.envn8n | nindent 4 }}
+
+---
+# General ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+    name: {{ .Values.cm.name }}
+data:
+    db_name: {{ .Values.cm.db_name }}
+    db_type: {{ .Values.cm.db_type }}
+    db_port: {{ .Values.cm.db_port | quote }}
+    db_host: {{ .Values.cm.db_host }}
+    backend_svc: {{ .Values.cm.backend_svc }}
+    n8n_webhook_url: {{ .Values.cm.n8n_webhook_url }}
+    cors_origins: {{ .Values.cm.cors_origins }}
+    webhook_url: {{ .Values.cm.webhook_url }}
+    n8n_editor_base_url: {{ .Values.cm.n8n_editor_base_url }}

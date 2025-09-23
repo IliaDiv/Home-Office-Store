@@ -15,7 +15,7 @@ app = Flask(__name__)
 # Read allowed origins from env (comma-separated)
 cors_origins = os.getenv(
     "CORS_ORIGINS",
-    "http://localhost:3000,http://frontend:3000"
+    "http://localhost:3000,http://frontend:3000,http://localhost,https://localhost"
 ).split(",")
 
 CORS(app, origins=cors_origins, supports_credentials=True)

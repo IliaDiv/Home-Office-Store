@@ -10,7 +10,7 @@ export async function POST(request: NextRequest) {
     console.log('BACKEND_SERVICE_URL:', process.env.BACKEND_SERVICE_URL)
     
     // Get backend URL - use BACKEND_SERVICE_URL for server-side requests
-    const backendUrl = process.env.BACKEND_SERVICE_URL || 'http://localhost:5000'
+    const backendUrl = process.env.BACKEND_SERVICE_URL || 'http://backend-svc:5000'
     
     // Extract user ID from the request body (passed from frontend)
     const userId = body.userId

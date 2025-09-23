@@ -1,0 +1,47 @@
+---
+# PostgreSQL StatefulSet
+apiVersion: apps/v1
+kind: StatefulSet 
+metadata:
+  name: {{ .Values.postgresql.name }}
+  labels:
+    {{- include "Home-Office-Store.postgresql.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ .Values.postgresql.service.name }}
+  replicas: {{ .Values.postgresql.replicas }}
+  selector:
+    matchLabels:
+      {{- include "Home-Office-Store.postgresql.labels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "Home-Office-Store.postgresql.labels" . | nindent 8 }}
+    spec:
+      containers:
+      - name: postgres
+        image: {{ .Values.postgresql.postgresql.image }}
+        ports:
+        - containerPort: {{ .Values.postgresql.postgresql.port }}
+        env:
+        - name: POSTGRES_DB
+          valueFrom:
+            configMapKeyRef:
+              name: {{ .Values.cm.name }}
+              key: db_name
+        - name: POSTGRES_USER
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: db_user
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.name }}
+              key: db_password
+        resources:
+          requests:
+            memory: {{ .Values.postgresql.resources.requests.memory }}
+            cpu: {{ .Values.postgresql.resources.requests.cpu }}
+          limits:
+            memory: {{ .Values.postgresql.resources.limits.memory }}
+            cpu: {{ .Values.postgresql.resources.limits.cpu }}

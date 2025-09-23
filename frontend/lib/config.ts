@@ -6,13 +6,13 @@
 export const config = {
   // API Configuration
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000',
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || '/api',
     endpoints: {
-      health: '/api/health',
-      test: '/api/test',
-      register: '/api/register',
-      login: '/api/login',
-      chat: '/api/webhook/chat',
+      health: '/health',
+      test: '/test',
+      register: '/register',
+      login: '/login',
+      chat: '/webhook/chat',
     }
   },
   

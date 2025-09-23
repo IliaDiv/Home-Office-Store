@@ -1,0 +1,151 @@
+---
+frontend:
+  name: react-frontend
+  replicas: 1
+  reactFrontend:
+    name: react-frontend
+    image: irbis3/frontend:k
+    port: 3000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  service:
+    name: frontend-svc
+    type: ClusterIP
+    ports:
+      port: 3000
+      protocol: TCP
+      targetPort: 3000
+
+backend:
+  name: flask-backend
+  replicas: 1
+  flaskBackend:
+    name: flask-backend
+    image: irbis3/backend
+    port: 5000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  service:
+    name: backend-svc
+    type: ClusterIP
+    ports:
+      port: 5000
+      protocol: TCP
+      targetPort: 5000
+
+postgresql:
+  name: postgresql
+  replicas: 1
+  postgresql:
+    name: postgresql
+    image: postgres
+    port: 5432
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  service:
+    name: postgresql-svc
+    type: ClusterIP
+    clusterIP: None
+    clusterIPs: None
+
+n8n:
+  name: n8n
+  replicas: 1
+  n8n:
+    name: n8n
+    image: irbis3/n8n
+    port: 5678
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  service:
+    name: n8n-svc
+    type: ClusterIP
+    ports:
+      port: 5678
+      protocol: TCP
+      targetPort: 5678
+
+n8nCm:
+  name: n8n-config
+  envn8n: |
+    DB_TYPE=postgresdb
+    N8N_DEFAULT_BINARY_DATA_MODE=filesystem
+    N8N_DEFAULT_LOCALE=en
+    N8N_METRICS=true
+    N8N_DIAGNOSTICS_ENABLED=false
+    EXECUTIONS_DATA_PRUNE=true
+    EXECUTIONS_DATA_MAX_AGE=168
+    N8N_API_AUTH_ENABLED=true
+    N8N_SKIP_SETUP=true
+    N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true
+    N8N_USER_MANAGEMENT_DISABLED=true
+    N8N_PERSONALIZATION_ENABLED=false
+    N8N_HOST=0.0.0.0
+    N8N_PORT=5678
+    N8N_PROTOCOL=http
+    N8N_DISABLE_UI=false
+    N8N_DISABLE_PRODUCTION_MAIN_PROCESS=false
+    N8N_BLOCK_ENV_ACCESS_IN_NODE=false
+    N8N_RUNNERS_ENABLED=true
+
+cm:
+  name: general-config
+  db_name: postgres
+  db_type: postgresdb
+  db_port: "5432"
+  db_host: postgresql-0.postgresql-svc
+  backend_svc: /api
+  n8n_webhook_url: http://n8n-svc:5678/webhook/chat
+  cors_origins: http://localhost,http://localhost:3000,http://frontend-svc:3000,http://localhost:80,http://frontend-svc
+  webhook_url: http://n8n-svc:5678
+  n8n_editor_base_url: http://localhost:5678
+
+secrets:
+  name: general-secrets
+  data:
+    db_user: psql_user
+    db_password: psql_password
+    n8n_api_key: n8n-api-key-12345
+    n8n_encryption_key: your-encryption-key
+    open_ai_api_key: >-
+      $OPENAI_API_KEY
+
+ingress:
+  name: main-ingress
+  enabled: true
+  className: traefik
+  rules:
+    host: localhost
+    frontendPaths:
+      path: /
+      pathType: Prefix
+    backendPaths:
+      path: /api
+      pathType: Prefix
+    n8nPaths:
+      path: /webhook/chat
+      pathType: Prefix

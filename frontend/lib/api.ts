@@ -175,30 +175,30 @@ class ApiService {
     })
 
     const queryString = searchParams.toString()
-    const endpoint = `/api/products${queryString ? `?${queryString}` : ''}`
+    const endpoint = `/products${queryString ? `?${queryString}` : ''}`
     
     return this.request<{ products: Product[]; total: number }>(endpoint)
   }
 
   async getProduct(id: number): Promise<{ product: Product }> {
-    return this.request<{ product: Product }>(`/api/products/${id}`)
+    return this.request<{ product: Product }>(`/products/${id}`)
   }
 
   async getFeaturedProducts(limit: number = 4): Promise<{ products: Product[] }> {
-    return this.request<{ products: Product[] }>(`/api/products/featured?limit=${limit}`)
+    return this.request<{ products: Product[] }>(`/products/featured?limit=${limit}`)
   }
 
   async getCategories(): Promise<{ categories: Category[] }> {
-    return this.request<{ categories: Category[] }>('/api/categories')
+    return this.request<{ categories: Category[] }>('/categories')
   }
 
   // Cart API methods
   async getCart(): Promise<{ items: CartItem[] }> {
-    return this.request<{ items: CartItem[] }>('/api/cart')
+    return this.request<{ items: CartItem[] }>('/cart')
   }
 
   async addToCart(productId: number, quantity: number = 1): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/cart/add', {
+    return this.request<{ message: string }>('/cart/add', {
       method: 'POST',
       body: JSON.stringify({
         product_id: productId,
@@ -208,7 +208,7 @@ class ApiService {
   }
 
   async updateCartItem(productId: number, quantity: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/cart/update', {
+    return this.request<{ message: string }>('/cart/update', {
       method: 'PUT',
       body: JSON.stringify({
         product_id: productId,
@@ -218,14 +218,14 @@ class ApiService {
   }
 
   async clearCart(): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/cart/clear', {
+    return this.request<{ message: string }>('/cart/clear', {
       method: 'DELETE',
     })
   }
 
   // User API methods
   async login(email: string, password: string): Promise<{ user: any; message: string }> {
-    return this.request<{ user: any; message: string }>('/api/login', {
+    return this.request<{ user: any; message: string }>('/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     })
@@ -237,7 +237,7 @@ class ApiService {
     email: string
     password: string
   }): Promise<{ user: any; message: string }> {
-    return this.request<{ user: any; message: string }>('/api/register', {
+    return this.request<{ user: any; message: string }>('/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     })
@@ -263,7 +263,7 @@ class ApiService {
       reply: string
       ticket?: string
       sessionId: string
-    }>('/api/webhook/chat', {
+    }>('/webhook/chat', {
       method: 'POST',
       body: JSON.stringify({
         message,
@@ -289,34 +289,34 @@ class ApiService {
     billing_address?: string
     payment_method?: string
   }): Promise<{ order: Order }> {
-    return this.request<{ order: Order }>('/api/orders', {
+    return this.request<{ order: Order }>('/orders', {
       method: 'POST',
       body: JSON.stringify(orderData),
     })
   }
 
   async getUserOrders(): Promise<{ orders: Order[] }> {
-    return this.request<{ orders: Order[] }>('/api/orders')
+    return this.request<{ orders: Order[] }>('/orders')
   }
 
   async getUserTickets(): Promise<{ tickets: any[] }> {
-    return this.request<{ tickets: any[] }>('/api/tickets')
+    return this.request<{ tickets: any[] }>('/tickets')
   }
 
   // Wishlist API methods
   async getWishlist(): Promise<{ items: WishlistItem[] }> {
-    return this.request<{ items: WishlistItem[] }>('/api/wishlist')
+    return this.request<{ items: WishlistItem[] }>('/wishlist')
   }
 
   async addToWishlist(productId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/wishlist/add', {
+    return this.request<{ message: string }>('/wishlist/add', {
       method: 'POST',
       body: JSON.stringify({ product_id: productId }),
     })
   }
 
   async removeFromWishlist(productId: number): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/wishlist/remove', {
+    return this.request<{ message: string }>('/wishlist/remove', {
       method: 'DELETE',
       body: JSON.stringify({ product_id: productId }),
     })
@@ -324,7 +324,7 @@ class ApiService {
 
   // Review API methods
   async getProductReviews(productId: number): Promise<{ reviews: Review[] }> {
-    return this.request<{ reviews: Review[] }>(`/api/reviews/${productId}`)
+    return this.request<{ reviews: Review[] }>(`/reviews/${productId}`)
   }
 
   async addReview(reviewData: {
@@ -333,7 +333,7 @@ class ApiService {
     title: string
     comment: string
   }): Promise<{ review: Review }> {
-    return this.request<{ review: Review }>('/api/reviews', {
+    return this.request<{ review: Review }>('/reviews', {
       method: 'POST',
       body: JSON.stringify(reviewData),
     })
@@ -344,14 +344,14 @@ class ApiService {
     current_password: string
     new_password: string
   }): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/user/change-password', {
+    return this.request<{ message: string }>('/user/change-password', {
       method: 'POST',
       body: JSON.stringify(passwordData),
     })
   }
 
   async deleteAccount(password: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>('/api/user/delete-account', {
+    return this.request<{ message: string }>('/user/delete-account', {
       method: 'DELETE',
       body: JSON.stringify({ password }),
     })
@@ -362,7 +362,7 @@ class ApiService {
     last_name: string
     phone: string
   }): Promise<{ message: string; user: any }> {
-    return this.request<{ message: string; user: any }>('/api/user/update-profile', {
+    return this.request<{ message: string; user: any }>('/user/update-profile', {
       method: 'PUT',
       body: JSON.stringify(profileData),
     })
