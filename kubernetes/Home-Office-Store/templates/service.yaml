@@ -5,7 +5,8 @@ kind: Service
 metadata:
   name: {{ .Values.backend.service.name }}
   labels:
-    {{- include "Home-Office-Store.backend.labels" . | nindent 4 }}
+    app: backend
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
 spec:
   ports:
   - name: http
@@ -13,7 +14,8 @@ spec:
     protocol: {{ .Values.backend.service.ports.protocol }}
     targetPort: {{ .Values.backend.service.ports.targetPort }}
   selector:
-    {{- include "Home-Office-Store.backend.labels" . | nindent 4 }}
+    app: backend
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
   type: {{ .Values.backend.service.type }}
 
 ---
@@ -23,7 +25,8 @@ kind: Service
 metadata:
   name: {{ .Values.frontend.service.name }}
   labels:
-    {{- include "Home-Office-Store.frontend.labels" . | nindent 4 }}
+    app: frontend
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
 spec:
   ports:
   - name: http
@@ -31,7 +34,8 @@ spec:
     protocol: {{ .Values.frontend.service.ports.protocol }}
     targetPort: {{ .Values.frontend.service.ports.targetPort }}
   selector:
-    {{- include "Home-Office-Store.frontend.labels" . | nindent 4 }}
+    app: frontend
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
   type: {{ .Values.frontend.service.type }}
 
 ---
@@ -41,7 +45,8 @@ kind: Service
 metadata:
   name: {{ .Values.n8n.service.name }}
   labels:
-    {{- include "Home-Office-Store.n8n.labels" . | nindent 4 }}
+    app: n8n
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
 spec:
   ports:
   - name: http
@@ -49,7 +54,8 @@ spec:
     protocol: {{ .Values.n8n.service.ports.protocol }}
     targetPort: {{ .Values.n8n.service.ports.targetPort }}
   selector:
-    {{- include "Home-Office-Store.n8n.labels" . | nindent 4 }}
+    app: n8n
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
   type: {{ .Values.n8n.service.type }}
 
 ---
@@ -59,11 +65,13 @@ kind: Service
 metadata:
   name: {{ .Values.postgresql.service.name }}
   labels:
-    {{- include "Home-Office-Store.postgresql.labels" . | nindent 4 }}
+    db: postgresql
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
 spec:
   clusterIP: {{ .Values.postgresql.service.clusterIP }}
   clusterIPs:
   - {{ .Values.postgresql.service.clusterIPs }}
   selector:
-    {{- include "Home-Office-Store.postgresql.labels" . | nindent 4 }}
+    db: postgresql
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
   type: {{ .Values.postgresql.service.type }}

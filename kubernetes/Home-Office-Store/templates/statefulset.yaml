@@ -5,17 +5,20 @@ kind: StatefulSet
 metadata:
   name: {{ .Values.postgresql.name }}
   labels:
-    {{- include "Home-Office-Store.postgresql.labels" . | nindent 4 }}
+    db: postgresql
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
 spec:
   serviceName: {{ .Values.postgresql.service.name }}
   replicas: {{ .Values.postgresql.replicas }}
   selector:
     matchLabels:
-      {{- include "Home-Office-Store.postgresql.labels" . | nindent 6 }}
+      db: postgresql
+      {{- include "Home-Office-Store.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "Home-Office-Store.postgresql.labels" . | nindent 8 }}
+        db: postgresql
+        {{- include "Home-Office-Store.labels" . | nindent 8 }}
     spec:
       containers:
       - name: postgres
@@ -38,10 +41,4 @@ spec:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
               key: db_password
-        resources:
-          requests:
-            memory: {{ .Values.postgresql.resources.requests.memory }}
-            cpu: {{ .Values.postgresql.resources.requests.cpu }}
-          limits:
-            memory: {{ .Values.postgresql.resources.limits.memory }}
-            cpu: {{ .Values.postgresql.resources.limits.cpu }}
+        {{- include "Home-Office-Store.postgresql.resources" . | nindent 8 }}

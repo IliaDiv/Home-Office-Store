@@ -5,16 +5,19 @@ kind: Deployment
 metadata:
   name: {{ .Values.backend.name }}
   labels:
-    {{- include "Home-Office-Store.backend.labels" . | nindent 4 }}
+    app: backend
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.backend.replicas }}
   selector:
     matchLabels:
-      {{- include "Home-Office-Store.backend.labels" . | nindent 6 }}
+      app: backend
+      {{- include "Home-Office-Store.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "Home-Office-Store.backend.labels" . | nindent 8 }}
+        app: backend
+        {{- include "Home-Office-Store.labels" . | nindent 8 }}
     spec:
       containers:
       - name: {{ .Values.backend.flaskBackend.name }}
@@ -57,13 +60,7 @@ spec:
             secretKeyRef:
               name: {{ .Values.secrets.name }}
               key: db_password
-        resources:
-          requests:
-            memory: {{ .Values.backend.resources.requests.memory }}
-            cpu: {{ .Values.backend.resources.requests.cpu }}
-          limits:
-            memory: {{ .Values.backend.resources.limits.memory }}
-            cpu: {{ .Values.backend.resources.limits.cpu }}
+        {{- include "Home-Office-Store.backend.resources" . | nindent 8 }}
         livenessProbe:
           httpGet:
             path: /api/health
@@ -111,16 +108,19 @@ kind: Deployment
 metadata:
   name: {{ .Values.frontend.name }}
   labels:
-    {{- include "Home-Office-Store.frontend.labels" . | nindent 4 }}
+    app: frontend
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.frontend.replicas }}
   selector:
     matchLabels:
-      {{- include "Home-Office-Store.frontend.labels" . | nindent 6 }}
+      app: frontend
+      {{- include "Home-Office-Store.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "Home-Office-Store.frontend.labels" . | nindent 8 }}
+        app: frontend
+        {{- include "Home-Office-Store.labels" . | nindent 8 }}
     spec:
       containers:
       - name: {{ .Values.frontend.reactFrontend.name }}
@@ -135,13 +135,7 @@ spec:
               key: backend_svc
         - name: NODE_ENV
           value: development
-        resources:
-          requests:
-            memory: {{ .Values.frontend.resources.requests.memory }}
-            cpu: {{ .Values.frontend.resources.requests.cpu }}
-          limits:
-            memory: {{ .Values.frontend.resources.limits.memory }}
-            cpu: {{ .Values.frontend.resources.limits.cpu }}
+        {{- include "Home-Office-Store.frontend.resources" . | nindent 8 }}
         livenessProbe:
           httpGet:
             path: /
@@ -166,16 +160,19 @@ kind: Deployment
 metadata:
   name: {{ .Values.n8n.name }}
   labels:
-    {{- include "Home-Office-Store.n8n.labels" . | nindent 4 }}
+    app: n8n
+    {{- include "Home-Office-Store.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.n8n.replicas }}
   selector:
     matchLabels:
-      {{- include "Home-Office-Store.n8n.labels" . | nindent 6 }}
+      app: n8n
+      {{- include "Home-Office-Store.labels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "Home-Office-Store.n8n.labels" . | nindent 8 }}
+        app: n8n
+        {{- include "Home-Office-Store.labels" . | nindent 8 }}
     spec:
       containers:
       - name: {{ .Values.n8n.n8n.name }}
@@ -226,13 +223,7 @@ spec:
         envFrom:
         - configMapRef:
             name: {{ .Values.n8nCm.name }}
-        resources:
-          requests:
-            memory: {{ .Values.n8n.resources.requests.memory }}
-            cpu: {{ .Values.n8n.resources.requests.cpu }}
-          limits:
-            memory: {{ .Values.n8n.resources.limits.memory }}
-            cpu: {{ .Values.n8n.resources.limits.cpu }}
+        {{- include "Home-Office-Store.n8n.resources" . | nindent 8 }}
         livenessProbe:
           httpGet:
             path: /healthz

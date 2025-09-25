@@ -50,82 +50,59 @@ app.kubernetes.io/name: {{ include "Home-Office-Store.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
-{{/*
-Create the name of the service account to use
-*/}}
-{{- define "Home-Office-Store.serviceAccountName" -}}
-{{- if .Values.serviceAccount.create }}
-{{- default (include "Home-Office-Store.fullname" .) .Values.serviceAccount.name | lower }}
-{{- else }}
-{{- default "default" .Values.serviceAccount.name | lower }}
-{{- end }}
-{{- end }}
-
-
-
-# PODS LABELS
-###################
-{{/*
-Backend component labels
-*/}}
-{{- define "Home-Office-Store.backend.labels" -}}
-app: backend
-{{- end }}
 
 
 {{/*
-Frontend component labels
+frontend resources
 */}}
-{{- define "Home-Office-Store.frontend.labels" -}}
-app: frontend
-{{- end }}
+{{- define "Home-Office-Store.frontend.resources" -}}
+resources:
+  limits:
+    cpu: {{ .Values.frontend.resources.limits.cpu | default "500m" }}
+    memory: {{ .Values.frontend.resources.limits.memory | default "256Mi" }}
+  requests:
+    cpu: {{ .Values.frontend.resources.requests.cpu | default "250m" }}
+    memory: {{ .Values.frontend.resources.requests.memory | default "128Mi" }}
+{{- end -}}
 
 
 {{/*
-N8N component labels
+backend resources
 */}}
-{{- define "Home-Office-Store.n8n.labels" -}}
-app: n8n
-{{- end }}
+{{- define "Home-Office-Store.backend.resources" -}}
+resources:
+  limits:
+    cpu: {{ .Values.backend.resources.limits.cpu | default "500m" }}
+    memory: {{ .Values.backend.resources.limits.memory | default "256Mi" }}
+  requests:
+    cpu: {{ .Values.backend.resources.requests.cpu | default "250m" }}
+    memory: {{ .Values.backend.resources.requests.memory | default "128Mi" }}
+{{- end -}}
 
 
 {{/*
-PostgreSQL database labels
+n8n resources
 */}}
-{{- define "Home-Office-Store.postgresql.labels" -}}
-db: postgresql
-{{- end }}
+{{- define "Home-Office-Store.n8n.resources" -}}
+resources:
+  limits:
+    cpu: {{ .Values.n8n.resources.limits.cpu | default "500m" }}
+    memory: {{ .Values.n8n.resources.limits.memory | default "256Mi" }}
+  requests:
+    cpu: {{ .Values.n8n.resources.requests.cpu | default "250m" }}
+    memory: {{ .Values.n8n.resources.requests.memory | default "128Mi" }}
+{{- end -}}
 
-
-
-
-# SERVICES LABELS
-{{/*
-###################
-Backend service labels
-*/}}
-{{- define "Home-Office-Store.backend.service.labels" -}}
-{{ include "Home-Office-Store.backend.labels" . }}
-{{- end }}
 
 {{/*
-Frontend service labels
+postgresql resources
 */}}
-{{- define "Home-Office-Store.frontend.service.labels" -}}
-{{ include "Home-Office-Store.frontend.labels" . }}
-{{- end }}
-
-{{/*
-N8N service labels
-*/}}
-{{- define "Home-Office-Store.n8n.service.labels" -}}
-{{ include "Home-Office-Store.n8n.labels" . }}
-{{- end }}
-
-{{/*
-PostgreSQL service labels
-*/}}
-{{- define "Home-Office-Store.postgresql.service.labels" -}}
-{{ include "Home-Office-Store.postgresql.labels" . }}
-{{- end }}
-
+{{- define "Home-Office-Store.postgresql.resources" -}}
+resources:
+  limits:
+    cpu: {{ .Values.postgresql.resources.limits.cpu | default "500m" }}
+    memory: {{ .Values.postgresql.resources.limits.memory | default "256Mi" }}
+  requests:
+    cpu: {{ .Values.postgresql.resources.requests.cpu | default "250m" }}
+    memory: {{ .Values.postgresql.resources.requests.memory | default "128Mi" }}
+{{- end -}}
