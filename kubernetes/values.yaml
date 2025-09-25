@@ -131,8 +131,7 @@ secrets:
     db_password: psql_password
     n8n_api_key: n8n-api-key-12345
     n8n_encryption_key: your-encryption-key
-    open_ai_api_key: >-
-      $OPENAI_API_KEY
+    open_ai_api_key: $OPENAI_API_KEY
 
 ingress:
   name: main-ingress
