@@ -48,9 +48,9 @@ jobs:
           docker compose build
           
           # Tag images with SHA suffix
-          docker tag home-office-store-frontend:latest frontend:$SHA_SUFFIX
-          docker tag home-office-store-backend:latest backend:$SHA_SUFFIX
-          docker tag home-office-store-n8n:latest n8n:$SHA_SUFFIX
+          docker tag home-office-store-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:$SHA_SUFFIX
+          docker tag home-office-store-backend:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:$SHA_SUFFIX
+          docker tag home-office-store-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:$SHA_SUFFIX
 
       - name: Start services
         run: |
