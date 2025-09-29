@@ -98,7 +98,9 @@ export default function RegisterPage() {
         // Registration successful
         console.log("Registration successful:", data)
         // Redirect to login page or show success message
-        window.location.href = '/login?registered=true'
+        const origin = typeof window !== 'undefined' ? window.location.origin : ''
+        // Ensure trailing slash per next.config.js (trailingSlash: true)
+        window.location.href = `${origin}/login/?registered=true`
       } else {
         // Registration failed
         setErrors(prev => ({ ...prev, general: data.error || "Registration failed" }))

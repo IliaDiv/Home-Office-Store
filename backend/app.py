@@ -18,7 +18,11 @@ cors_origins = os.getenv(
     "http://localhost:3000,http://frontend:3000,http://localhost,https://localhost"
 ).split(",")
 
-CORS(app, origins=cors_origins, supports_credentials=True)
+CORS(app, 
+     origins=cors_origins, 
+     supports_credentials=True,
+     allow_headers=['Content-Type', 'Authorization', 'X-User-ID'],
+     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 # N8N webhook URL
 N8N_WEBHOOK_URL = os.getenv(
@@ -1610,6 +1614,12 @@ print("Background cleanup thread started")
 @app.route("/")
 def home():
     return jsonify({"message": "Flask backend is running!"})
+
+
+@app.route("/api/<path:path>", methods=["OPTIONS"])
+def handle_options(path):
+    """Handle preflight OPTIONS requests for all routes"""
+    return "", 200
 
 
 @app.route("/api/health", methods=["GET"])
