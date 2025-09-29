@@ -84,11 +84,11 @@ jobs:
       - name: Health check n8n
         run: |
           set -e
-          for i in {1..30}; do
-            if curl -fsS http://localhost:5678/rest/healthz >/dev/null; then
+          for i in {1..20}; do
+            if curl -fsS http://localhost:5678/healthz >/dev/null; then
               echo "n8n healthy"; exit 0
             fi
-            echo "Waiting for n8n... ($i)"; sleep 2
+            echo "Waiting for n8n... ($i)"; sleep 5
           done
           echo "n8n not healthy in time"; exit 1
 
