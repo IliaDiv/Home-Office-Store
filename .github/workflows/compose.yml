@@ -218,9 +218,9 @@ jobs:
           SHA_SUFFIX=${{ steps.sha.outputs.suffix }}
           echo "Pushing images with SHA suffix: $SHA_SUFFIX"
           
-          docker push frontend:$SHA_SUFFIX
-          docker push backend:$SHA_SUFFIX
-          docker push n8n:$SHA_SUFFIX
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend:$SHA_SUFFIX
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend:$SHA_SUFFIX
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/n8n:$SHA_SUFFIX
           
           echo "Successfully pushed all images to Docker Hub"
 
