@@ -205,8 +205,6 @@ jobs:
           # Check if reply starts with "Sorry" (case insensitive)
           if [[ "$reply" =~ ^[Ss]orry ]]; then
             echo "Chat reply indicates failure (starts with 'Sorry'): '$reply'" >&2
-            echo "Full chat response:" >&2
-            echo "$chat_resp" >&2
             exit 1
           fi
           
