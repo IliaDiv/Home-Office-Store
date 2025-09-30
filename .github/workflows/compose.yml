@@ -21,9 +21,8 @@ jobs:
           token: ${{ secrets.ARGOCD_PAT }}
           repository: IliaDiv/hos-argocd
           event-type: change-sha
-          github_sha_hash: ${{ github.sha }}
-          github_sha_short: "${github_sha_hash:0:6}"
-          client-payload: '{"sha": "${github.sha_short}"}'
+          client-payload: '{"sha": "${{ github.sha }}"}'
+
 
 
 
