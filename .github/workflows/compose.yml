@@ -42,15 +42,15 @@ jobs:
 
       - name: Build and tag images
         run: |
-          SHA_SUFFIX=${{ steps.sha.outputs.suffix }}
-          echo "Building images with SHA suffix: $SHA_SUFFIX"
-          
           docker compose build
           
           # Tag images with SHA suffix
-          docker tag home-office-store-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:$SHA_SUFFIX
-          docker tag home-office-store-backend:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:$SHA_SUFFIX
-          docker tag home-office-store-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:$SHA_SUFFIX
+          docker tag home-office-store-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
+          docker tag home-office-store-backend:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.sha }}
+          docker tag home-office-store-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:${{ github.sha }}
+          docker tag home-office-store-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          docker tag home-office-store-backend:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+          docker tag home-office-store-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:latest
 
       - name: Start services
         run: |
