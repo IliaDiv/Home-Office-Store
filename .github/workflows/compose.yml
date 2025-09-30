@@ -9,18 +9,18 @@ on:
 jobs:
   compose:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 8
     env:
       DB_HOST: postgres
       DB_PORT: 5432
       DB_NAME: ${{ 'home_office_store' }}
       DB_USER: ${{ 'postgres' }}
       DB_PASSWORD: ${{ 'postgres' }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || '' }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -215,14 +215,22 @@ jobs:
       - name: Push images to Docker Hub
         if: success()
         run: |
-          SHA_SUFFIX=${{ steps.sha.outputs.suffix }}
-          echo "Pushing images with SHA suffix: $SHA_SUFFIX"
-          
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend:$SHA_SUFFIX
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend:$SHA_SUFFIX
-          docker push ${{ secrets.DOCKERHUB_USERNAME }}/n8n:$SHA_SUFFIX
-          
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/n8n:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.sha }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/n8n:${{ github.sha }}
+
           echo "Successfully pushed all images to Docker Hub"
+
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.ARGOCD_PAT }}
+          repository: irbis3/hos-argocd
+          event-type: change-sha
+          client-payload: '{"sha": "${{ github.sha }}"}'
 
       - name: Show logs on failure
         if: failure()
