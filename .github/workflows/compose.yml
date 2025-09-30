@@ -228,7 +228,7 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.ARGOCD_PAT }}
-          repository: irbis3/hos-argocd
+          repository: IliaDiv/hos-argocd
           event-type: change-sha
           client-payload: '{"sha": "${{ github.sha }}"}'
 
