@@ -10,13 +10,6 @@ jobs:
   compose:
     runs-on: ubuntu-latest
     timeout-minutes: 8
-    env:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: ${{ 'home_office_store' }}
-      DB_USER: ${{ 'postgres' }}
-      DB_PASSWORD: ${{ 'postgres' }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Checkout
@@ -28,7 +21,10 @@ jobs:
           token: ${{ secrets.ARGOCD_PAT }}
           repository: IliaDiv/hos-argocd
           event-type: change-sha
-          client-payload: '{"sha": "${{ github.sha }}"}'
+          github_sha_hash: ${{ github.sha }}
+          github_sha_short: "${github_sha_hash:0:6}"
+          client-payload: '{"sha": "${github.sha_short}"}'
+
 
 
 
