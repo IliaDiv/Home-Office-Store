@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Set default API_URL if not provided
-export API_URL=${API_URL:-http://backend-svc:5000/}
+export API_URL=${API_URL:-/api}
 
 # Wait for backend to be available (optional, but helpful)
 echo "Waiting for backend to be available..."
