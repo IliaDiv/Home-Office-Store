@@ -1,8 +1,10 @@
 #!/bin/sh
 
 # Set default API_URL if not provided
-export API_URL=${API_URL:-/api}
+export API_URL=${API_URL:-http://backend:5000}
 
+# Debug: show the API_URL value
+echo "API_URL is set to: $API_URL"
 
 # Substitute only API_URL in nginx config, leave nginx variables alone
 envsubst '$API_URL' < /nginx.conf.template > /etc/nginx/conf.d/default.conf
