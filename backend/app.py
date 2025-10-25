@@ -52,14 +52,14 @@ app_memory_usage_bytes = Gauge('app_memory_usage_bytes', 'Application memory usa
 app_cpu_seconds_total = Counter('app_cpu_seconds_total', 'Total CPU time consumed by application in seconds')
 app_start_time_seconds = Gauge('app_start_time_seconds', 'Application start time in seconds since epoch')
 
-# New metrics
-process_start_time_seconds = Gauge('process_start_time_seconds', 'Process start time in seconds since epoch')
+# New metrics (using different name to avoid conflict with PrometheusMetrics)
+application_start_time_seconds = Gauge('application_start_time_seconds', 'Application start time in seconds since epoch')
 http_request_total = Counter('http_request_total', 'Total HTTP requests', ['method', 'path', 'status_code'])
 http_requests_in_progress = Gauge('http_requests_in_progress', 'Number of HTTP requests currently in progress')
 
 # Initialize application start time
 app_start_time_seconds.set(time.time())
-process_start_time_seconds.set(time.time())
+application_start_time_seconds.set(time.time())
 
 class DatabaseManager:
     def __init__(self):
