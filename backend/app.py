@@ -10,8 +10,15 @@ import bcrypt
 from psycopg2.extras import RealDictCursor
 import threading
 import time
+import psutil
+from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 
 app = Flask(__name__)
+
+# Initialize Prometheus metrics
+metrics = PrometheusMetrics(app)
+
 # Read allowed origins from env (comma-separated)
 cors_origins = os.getenv(
     "CORS_ORIGINS",
@@ -38,6 +45,15 @@ DB_CONFIG = {
     'user': os.getenv('DB_USER', 'postgres'),
     'password': os.getenv('DB_PASSWORD', 'postgres')
 }
+
+# Custom Prometheus metrics
+http_errors_total = Counter('http_errors_total', 'Total HTTP errors', ['status_code', 'endpoint'])
+process_resident_memory_bytes = Gauge('process_resident_memory_bytes', 'Resident memory usage in bytes')
+process_cpu_seconds_total = Counter('process_cpu_seconds_total', 'Total CPU time consumed in seconds')
+process_start_time_seconds = Gauge('process_start_time_seconds', 'Process start time in seconds since epoch')
+
+# Initialize process start time
+process_start_time_seconds.set(time.time())
 
 class DatabaseManager:
     def __init__(self):
@@ -1356,12 +1372,35 @@ wishlist_service = WishlistService()
 review_service = ReviewService()
 ticket_service = TicketService()
 
+def update_system_metrics():
+    """Update system metrics for Prometheus"""
+    try:
+        # Update memory usage
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        process_resident_memory_bytes.set(memory_info.rss)
+        
+        # Update CPU usage
+        cpu_times = process.cpu_times()
+        total_cpu_time = cpu_times.user + cpu_times.system
+        process_cpu_seconds_total.inc(total_cpu_time - getattr(update_system_metrics, 'last_cpu_time', 0))
+        update_system_metrics.last_cpu_time = total_cpu_time
+        
+    except Exception as e:
+        print(f"Error updating system metrics: {e}")
+
+# Initialize last CPU time
+update_system_metrics.last_cpu_time = 0
+
 def background_cleanup():
-    """Background task to cleanup old chat sessions every hour"""
+    """Background task to cleanup old chat sessions and update metrics"""
     while True:
         try:
-            # Wait for 1 hour (3600 seconds)
+            # Wait for 15 minutes
             time.sleep(900)
+            
+            # Update system metrics
+            update_system_metrics()
             
             # Cleanup sessions older than 15 minutes
             db_manager = DatabaseManager()
@@ -1614,6 +1653,24 @@ print("Background cleanup thread started")
 @app.route("/")
 def home():
     return jsonify({"message": "Flask backend is running!"})
+
+
+@app.route("/metrics")
+def metrics_endpoint():
+    """Prometheus metrics endpoint"""
+    update_system_metrics()
+    return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
+
+
+def track_http_errors(response):
+    """Track HTTP errors for Prometheus metrics"""
+    if response.status_code >= 400:
+        endpoint = request.endpoint or 'unknown'
+        http_errors_total.labels(status_code=str(response.status_code), endpoint=endpoint).inc()
+    return response
+
+# Register the after_request handler
+app.after_request(track_http_errors)
 
 
 @app.route("/api/<path:path>", methods=["OPTIONS"])
