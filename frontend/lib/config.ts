@@ -6,7 +6,7 @@
 export const config = {
   // API Configuration
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || 'http://localhost:5000/api',
+    baseUrl: '/api',
     endpoints: {
       health: '/health',
       test: '/test',

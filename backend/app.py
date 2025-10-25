@@ -52,8 +52,14 @@ app_memory_usage_bytes = Gauge('app_memory_usage_bytes', 'Application memory usa
 app_cpu_seconds_total = Counter('app_cpu_seconds_total', 'Total CPU time consumed by application in seconds')
 app_start_time_seconds = Gauge('app_start_time_seconds', 'Application start time in seconds since epoch')
 
+# New metrics
+process_start_time_seconds = Gauge('process_start_time_seconds', 'Process start time in seconds since epoch')
+http_request_total = Counter('http_request_total', 'Total HTTP requests', ['method', 'path', 'status_code'])
+http_requests_in_progress = Gauge('http_requests_in_progress', 'Number of HTTP requests currently in progress')
+
 # Initialize application start time
 app_start_time_seconds.set(time.time())
+process_start_time_seconds.set(time.time())
 
 class DatabaseManager:
     def __init__(self):
@@ -1655,22 +1661,44 @@ def home():
     return jsonify({"message": "Flask backend is running!"})
 
 
-@app.route("/metrics")
+@app.route("/api/metrics")
 def metrics_endpoint():
     """Prometheus metrics endpoint"""
     update_system_metrics()
     return generate_latest(), 200, {'Content-Type': CONTENT_TYPE_LATEST}
 
 
-def track_http_errors(response):
-    """Track HTTP errors for Prometheus metrics"""
+def track_http_requests_before():
+    """Track HTTP requests before processing"""
+    # Increment in-progress counter
+    http_requests_in_progress.inc()
+    # Store start time in flask's request context
+    if not hasattr(request, '_start_time'):
+        request._start_time = time.time()
+
+def track_http_requests_after(response):
+    """Track HTTP requests after processing"""
+    # Decrement in-progress counter
+    http_requests_in_progress.dec()
+    
+    # Track the request
+    method = request.method
+    path = request.path
+    status_code = str(response.status_code)
+    
+    # Increment the request counter
+    http_request_total.labels(method=method, path=path, status_code=status_code).inc()
+    
+    # Track errors separately
     if response.status_code >= 400:
         endpoint = request.endpoint or 'unknown'
-        http_errors_total.labels(status_code=str(response.status_code), endpoint=endpoint).inc()
+        http_errors_total.labels(status_code=status_code, endpoint=endpoint).inc()
+    
     return response
 
-# Register the after_request handler
-app.after_request(track_http_errors)
+# Register the request handlers
+app.before_request(track_http_requests_before)
+app.after_request(track_http_requests_after)
 
 
 @app.route("/api/<path:path>", methods=["OPTIONS"])
