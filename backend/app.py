@@ -48,12 +48,12 @@ DB_CONFIG = {
 
 # Custom Prometheus metrics
 http_errors_total = Counter('http_errors_total', 'Total HTTP errors', ['status_code', 'endpoint'])
-process_resident_memory_bytes = Gauge('process_resident_memory_bytes', 'Resident memory usage in bytes')
-process_cpu_seconds_total = Counter('process_cpu_seconds_total', 'Total CPU time consumed in seconds')
-process_start_time_seconds = Gauge('process_start_time_seconds', 'Process start time in seconds since epoch')
+app_memory_usage_bytes = Gauge('app_memory_usage_bytes', 'Application memory usage in bytes')
+app_cpu_seconds_total = Counter('app_cpu_seconds_total', 'Total CPU time consumed by application in seconds')
+app_start_time_seconds = Gauge('app_start_time_seconds', 'Application start time in seconds since epoch')
 
-# Initialize process start time
-process_start_time_seconds.set(time.time())
+# Initialize application start time
+app_start_time_seconds.set(time.time())
 
 class DatabaseManager:
     def __init__(self):
@@ -1378,12 +1378,12 @@ def update_system_metrics():
         # Update memory usage
         process = psutil.Process()
         memory_info = process.memory_info()
-        process_resident_memory_bytes.set(memory_info.rss)
+        app_memory_usage_bytes.set(memory_info.rss)
         
         # Update CPU usage
         cpu_times = process.cpu_times()
         total_cpu_time = cpu_times.user + cpu_times.system
-        process_cpu_seconds_total.inc(total_cpu_time - getattr(update_system_metrics, 'last_cpu_time', 0))
+        app_cpu_seconds_total.inc(total_cpu_time - getattr(update_system_metrics, 'last_cpu_time', 0))
         update_system_metrics.last_cpu_time = total_cpu_time
         
     except Exception as e:
