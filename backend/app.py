@@ -55,7 +55,7 @@ app_start_time_seconds = Gauge('app_start_time_seconds', 'Application start time
 # New metrics (using different name to avoid conflict with PrometheusMetrics)
 application_start_time_seconds = Gauge('application_start_time_seconds', 'Application start time in seconds since epoch')
 http_request_total = Counter('http_request_total', 'Total HTTP requests', ['method', 'path', 'status_code'])
-http_requests_in_progress = Gauge('http_requests_in_progress', 'Number of HTTP requests currently in progress')
+http_requests_in_progress = Gauge('http_requests_in_progress', 'Number of HTTP requests currently in progress', ['path'])
 
 # Initialize application start time
 app_start_time_seconds.set(time.time())
@@ -1670,20 +1670,21 @@ def metrics_endpoint():
 
 def track_http_requests_before():
     """Track HTTP requests before processing"""
-    # Increment in-progress counter
-    http_requests_in_progress.inc()
+    # Increment in-progress counter with path label
+    path = request.path
+    http_requests_in_progress.labels(path=path).inc()
     # Store start time in flask's request context
     if not hasattr(request, '_start_time'):
         request._start_time = time.time()
 
 def track_http_requests_after(response):
     """Track HTTP requests after processing"""
-    # Decrement in-progress counter
-    http_requests_in_progress.dec()
+    # Decrement in-progress counter with path label
+    path = request.path
+    http_requests_in_progress.labels(path=path).dec()
     
     # Track the request
     method = request.method
-    path = request.path
     status_code = str(response.status_code)
     
     # Increment the request counter
