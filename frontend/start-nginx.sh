@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Set default API_URL if not provided
-export API_URL=${API_URL:-http://localhost}
+export API_URL=${API_URL:-/api}
 
 # Debug: show the API_URL value
 echo "API_URL is set to: $API_URL"
