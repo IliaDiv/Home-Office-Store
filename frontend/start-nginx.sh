@@ -7,7 +7,7 @@ export API_URL=${API_URL:-/api}
 echo "API_URL is set to: $API_URL"
 
 # Substitute only API_URL in nginx config, leave nginx variables alone
-envsubst '$API_URL' < /nginx.conf.template > /etc/nginx/conf.d/default.conf
+cp /nginx.conf.template /etc/nginx/conf.d/default.conf
 
 # Debug: show the generated config
 echo "Generated nginx config:"
