@@ -18,18 +18,13 @@ app = Flask(__name__)
 
 # Initialize Prometheus metrics
 metrics = PrometheusMetrics(app)
+CORS(app)
 
 # Read allowed origins from env (comma-separated)
 cors_origins = os.getenv(
     "CORS_ORIGINS",
     "http://localhost:3000,http://frontend:3000,http://localhost,https://localhost"
 ).split(",")
-
-CORS(app, 
-     origins=cors_origins, 
-     supports_credentials=True,
-     allow_headers=['Content-Type', 'Authorization', 'X-User-ID'],
-     methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
 
 # N8N webhook URL
 N8N_WEBHOOK_URL = os.getenv(
