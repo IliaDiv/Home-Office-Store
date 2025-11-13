@@ -52,8 +52,12 @@ else
   echo "✅ OpenAI credentials already exist, skipping import"
 fi
 
-export DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER:-$(cat /mnt/secrets-store/n8n/username)}
-export DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD:-$(cat /mnt/secrets-store/n8n/password)}
+# Ensure jq is installed in the container
+apt-get update && apt-get install -y jq
+
+# Get env from mount if using EKS
+export DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER:-$(jq -r '.username' /mnt/secrets-store/n8n/rds)}
+export DB_POSTGRESDB_PASSWORD=${DB_POSTGRESDB_PASSWORD:-$(jq -r '.password' /mnt/secrets-store/n8n/rds)}
 
 # Check if PostgreSQL credentials already exist in n8n
 if ! n8n list:credentials | grep -q "postgres-env-credentials" 2>/dev/null; then

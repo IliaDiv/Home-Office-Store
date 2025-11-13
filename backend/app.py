@@ -33,27 +33,17 @@ N8N_WEBHOOK_URL = os.getenv(
 )
 
 # Read env from mounted files
-def read_secret(env_var, file_path, default=None):
-    """
-    Returns the value of the environment variable if set,
-    otherwise reads it from a file if it exists, otherwise returns default.
-    """
-    value = os.getenv(env_var)
-    if value is not None:
-        return value
-    try:
-        with open(file_path, 'r') as f:
-            return f.read().strip()
-    except FileNotFoundError:
-        return default
+secret_path = "/mnt/secrets-store/flask/rds"
 
-# Database configuration
+with open(secret_path, "r") as f:
+    secret_data = json.load(f)
+
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'postgres'),
     'port': os.getenv('DB_PORT', '5432'),
     'database': os.getenv('DB_NAME', 'home_office_store'),
-    'user': read_secret('DB_USER', '/mnt/secrets-store/flask/db_user', 'postgres'),
-    'password': read_secret('DB_PASSWORD', '/mnt/secrets-store/flask/db_password', 'postgres')
+    'user': secret_data.get('username', 'postgres'),
+    'password': secret_data.get('password', 'postgres')
 }
 
 # Custom Prometheus metrics
