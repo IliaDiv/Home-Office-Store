@@ -35,16 +35,26 @@ N8N_WEBHOOK_URL = os.getenv(
 # Read env from mounted files
 secret_path = "/mnt/secrets-store/flask/rds"
 
-with open(secret_path, "r") as f:
-    secret_data = json.load(f)
+# Defaults
+db_user = os.getenv("DB_USER", "postgres")
+db_password = os.getenv("DB_PASSWORD", "postgres")
+
+# Override if secret file exists
+if os.path.isfile(secret_path):
+    with open(secret_path, "r") as f:
+        secret_data = json.load(f)
+        db_user = secret_data.get("username", db_user)
+        db_password = secret_data.get("password", db_password)
 
 DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'postgres'),
-    'port': os.getenv('DB_PORT', '5432'),
-    'database': os.getenv('DB_NAME', 'home_office_store'),
-    'user': secret_data.get('username', 'postgres'),
-    'password': secret_data.get('password', 'postgres')
+    "host": os.getenv("DB_HOST", "postgres"),
+    "port": int(os.getenv("DB_PORT", "5432")),
+    "database": os.getenv("DB_NAME", "home_office_store"),
+    "user": db_user,
+    "password": db_password,
 }
+
+print("Database config:", DB_CONFIG)
 
 # Custom Prometheus metrics
 http_errors_total = Counter('http_errors_total', 'Total HTTP errors', ['status_code', 'endpoint'])
