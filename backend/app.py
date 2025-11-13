@@ -32,13 +32,28 @@ N8N_WEBHOOK_URL = os.getenv(
     "http://n8n:5678/webhook/chat"
 )
 
+# Read env from mounted files
+def read_secret(env_var, file_path, default=None):
+    """
+    Returns the value of the environment variable if set,
+    otherwise reads it from a file if it exists, otherwise returns default.
+    """
+    value = os.getenv(env_var)
+    if value is not None:
+        return value
+    try:
+        with open(file_path, 'r') as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return default
+
 # Database configuration
 DB_CONFIG = {
     'host': os.getenv('DB_HOST', 'postgres'),
     'port': os.getenv('DB_PORT', '5432'),
     'database': os.getenv('DB_NAME', 'home_office_store'),
-    'user': os.getenv('DB_USER', 'postgres'),
-    'password': os.getenv('DB_PASSWORD', 'postgres')
+    'user': read_secret('DB_USER', '/mnt/secrets-store/flask/db_user', 'postgres'),
+    'password': read_secret('DB_PASSWORD', '/mnt/secrets-store/flask/db_password', 'postgres')
 }
 
 # Custom Prometheus metrics
