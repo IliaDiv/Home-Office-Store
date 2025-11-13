@@ -15,14 +15,10 @@ export const dynamicParams = true
 export async function generateStaticParams() {
   // For static export, we'll generate a few common product IDs
   // The rest will be handled by client-side routing
-  return [
-    { id: '1' },
-    { id: '2' },
-    { id: '3' },
-    { id: '4' },
-    { id: '5' },
-  ]
+  return []
 }
+
+export const dynamic = 'force-dynamic' // Force all routes to be dynamic
 
 interface ProductDetailPageProps {
   params: {
