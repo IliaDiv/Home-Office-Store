@@ -9,16 +9,15 @@ import { ProductReviews } from "@/components/product-reviews"
 import Link from "next/link"
 import { ProductDetailClient } from "./product-detail-client"
 
-// Required for static export
-export const dynamicParams = true
-
-export async function generateStaticParams() {
-  // For static export, we'll generate a few common product IDs
-  // The rest will be handled by client-side routing
-  return []
+export function generateStaticParams() {
+  // Generate multiple product IDs to pre-build
+  // Add all the product IDs you expect to have
+  const productIds = Array.from({ length: 30 }, (_, i) => (i + 1).toString())
+  
+  return productIds.map(id => ({
+    id: id
+  }))
 }
-
-export const dynamic = 'force-dynamic' // Force all routes to be dynamic
 
 interface ProductDetailPageProps {
   params: {

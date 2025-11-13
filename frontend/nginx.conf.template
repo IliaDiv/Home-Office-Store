@@ -39,8 +39,9 @@ server {
 
     # Handle client-side routing - serve index.html for all non-API routes
     location / {
-        try_files $uri $uri/ /index.html;
+        try_files $uri $uri/ =404;
     }
+
 
     # Serve static files from Next.js build
     location /_next/static/ {
