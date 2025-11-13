@@ -20,6 +20,7 @@ if [ -f /mnt/secrets-store/flask/rds ]; then
     echo "Reading database credentials from secrets store..."
     DB_POSTGRESDB_USER=$(jq -r '.username' /mnt/secrets-store/flask/rds)
     DB_POSTGRESDB_PASSWORD=$(jq -r '.password' /mnt/secrets-store/flask/rds)
+    echo $DB_POSTGRESDB_USER
 else
     echo "Using database credentials from environment variables..."
     DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER:-${DB_USER}}
@@ -74,7 +75,7 @@ mkdir -p /home/node/.n8n/credentials
 OPENAI_API_KEY=""
 if [ -f /mnt/secrets-store/n8n/openai ]; then
     echo "Reading OpenAI API key from secrets store..."
-    OPENAI_API_KEY=$(jq -r '.openai-api-key' /mnt/secrets-store/n8n/openai)
+    OPENAI_API_KEY=$(jq -r '."openai-api-key"' /mnt/secrets-store/n8n/openai)
 elif [ -n "$OPENAI_API_KEY" ]; then
     echo "Using OpenAI API key from environment variable..."
 else
