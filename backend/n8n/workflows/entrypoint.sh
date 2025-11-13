@@ -16,10 +16,10 @@ if ! command -v jq > /dev/null 2>&1; then
 fi
 
 # Get DB credentials from mount if using EKS, otherwise use environment variables
-if [ -f /mnt/secrets-store/n8n/rds ]; then
+if [ -f /mnt/secrets-store/flask/rds ]; then
     echo "Reading database credentials from secrets store..."
-    DB_POSTGRESDB_USER=$(jq -r '.username' /mnt/secrets-store/n8n/rds)
-    DB_POSTGRESDB_PASSWORD=$(jq -r '.password' /mnt/secrets-store/n8n/rds)
+    DB_POSTGRESDB_USER=$(jq -r '.username' /mnt/secrets-store/flask/rds)
+    DB_POSTGRESDB_PASSWORD=$(jq -r '.password' /mnt/secrets-store/flask/rds)
 else
     echo "Using database credentials from environment variables..."
     DB_POSTGRESDB_USER=${DB_POSTGRESDB_USER:-${DB_USER}}
@@ -71,6 +71,16 @@ echo "Setting up credentials from environment variables..."
 mkdir -p /home/node/.n8n/credentials
 
 # Create OpenAI credentials file from environment variable
+OPENAI_API_KEY=""
+if [ -f /mnt/secrets-store/n8n/openai ]; then
+    echo "Reading OpenAI API key from secrets store..."
+    OPENAI_API_KEY=$(jq -r '.openai-api-key' /mnt/secrets-store/n8n/openai)
+elif [ -n "$OPENAI_API_KEY" ]; then
+    echo "Using OpenAI API key from environment variable..."
+else
+    echo "⚠️  Warning: OPENAI_API_KEY not found in neither secrets store or environment"
+fi
+
 if [ -n "$OPENAI_API_KEY" ]; then
   OPENAI_CREDS_FILE="/home/node/.n8n/credentials/openai-env-credentials.json"
   cat > "$OPENAI_CREDS_FILE" << EOF
@@ -87,8 +97,6 @@ if [ -n "$OPENAI_API_KEY" ]; then
 EOF
   echo "✅ OpenAI credentials file created"
   n8n import:credentials --input="$OPENAI_CREDS_FILE" || echo "⚠️  Credentials may already exist"
-else
-  echo "⚠️  Warning: OPENAI_API_KEY environment variable not set"
 fi
 
 # Create PostgreSQL credentials file from environment variables
@@ -105,7 +113,8 @@ cat > "$POSTGRES_CREDS_FILE" << EOF
       "database": "$DB_POSTGRESDB_DATABASE",
       "user": "$DB_POSTGRESDB_USER",
       "password": "$DB_POSTGRESDB_PASSWORD",
-      "ssl": "disable"
+      "ssl": "disable",
+      "allowUnauthorizedCerts": true
     }
   }
 ]
@@ -151,19 +160,5 @@ fi
 
 echo "Starting n8n (final)..."
 exec n8n start
-
-# Check if n8n is responding
-MAX_RETRIES=30
-RETRY_COUNT=0
-until curl -s -f http://localhost:5678/ > /dev/null 2>&1; do
-  RETRY_COUNT=$((RETRY_COUNT + 1))
-  if [ $RETRY_COUNT -ge $MAX_RETRIES ]; then
-    echo "❌ Error: n8n failed to start after $MAX_RETRIES attempts"
-    kill $N8N_PID 2>/dev/null || true
-    exit 1
-  fi
-  echo "n8n not ready yet... sleeping 2s (attempt $RETRY_COUNT/$MAX_RETRIES)"
-  sleep 2
-done
 
 echo "n8n is READY"
