@@ -1,9 +1,10 @@
 .venv/
 node_modules/
-.next/
+frontend/.next/
 .env
 n8n_data/
 scripts/
 .done
 .gitignore
 backend/__pycache__/
+frontend/out/
