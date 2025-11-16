@@ -6,7 +6,7 @@
 export const config = {
   // API Configuration
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || '/api',
+    baseUrl: '/api',
     endpoints: {
       health: '/health',
       test: '/test',
@@ -25,12 +25,18 @@ export const config = {
  * Helper function to get full API URL for an endpoint
  */
 export const getApiUrl = (endpoint: keyof typeof config.api.endpoints): string => {
-  return `${config.api.baseUrl}${config.api.endpoints[endpoint]}`
+  const base = getBaseApiUrl().replace(/\/+$/, '')
+  return `${base}${config.api.endpoints[endpoint]}`
 }
 
 /**
  * Helper function to get the base API URL
  */
 export const getBaseApiUrl = (): string => {
-  return config.api.baseUrl
+  let base = config.api.baseUrl
+  // Ensure base URL ends with /api for backend routes
+  if (!base.endsWith('/api')) {
+    base = base.replace(/\/+$/, '') + '/api'
+  }
+  return base
 }

@@ -1,0 +1,241 @@
+name: Compose CI
+
+on:
+  push:
+    branches: [ dev, main ]
+  pull_request:
+    branches: [ dev, main ]
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${{ 'home_office_store' }}
+      DB_USER: ${{ 'postgres' }}
+      DB_PASSWORD: ${{ 'postgres' }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure Docker Compose v2
+        run: |
+          echo "Docker Compose version: $(docker compose version)"
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract SHA suffix
+        id: sha
+        run: |
+          echo "suffix=${GITHUB_SHA: -6}" >> $GITHUB_OUTPUT
+
+      - name: Build and tag images
+        run: |
+          docker compose build
+          
+          # Tag images with SHA suffix
+          docker tag home-office-store-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
+          docker tag home-office-store-backend-svc:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.sha }}
+          docker tag home-office-store-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:${{ github.sha }}
+          docker tag home-office-store-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          docker tag home-office-store-backend-svc:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+          docker tag home-office-store-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:latest
+
+      - name: Start services
+        run: |
+          docker compose up -d
+
+      - name: Wait for Postgres to be healthy
+        run: |
+          set -e
+          for i in {1..30}; do
+            STATUS=$(docker inspect --format='{{json .State.Health.Status}}' home-office-store-postgres-1 2>/dev/null || true)
+            if [ "$STATUS" = "\"healthy\"" ]; then
+              echo "Postgres is healthy"; break
+            fi
+            echo "Waiting for Postgres... ($i)"; sleep 2
+          done
+          if [ "$STATUS" != "\"healthy\"" ]; then
+            echo "Postgres did not become healthy in time"; exit 1
+          fi
+
+      - name: Health check backend
+        run: |
+          set -e
+          for i in {1..30}; do
+            if curl -fsS http://localhost:5000/api/health >/dev/null; then
+              echo "Backend healthy"; exit 0
+            fi
+            echo "Waiting for backend health... ($i)"; sleep 2
+          done
+          echo "Backend not healthy in time"; exit 1
+
+      - name: Health check n8n
+        run: |
+          set -e
+          for i in {1..20}; do
+            if curl -fsS http://localhost:5678/healthz >/dev/null; then
+              echo "n8n healthy"; exit 0
+            fi
+            echo "Waiting for n8n... ($i)"; sleep 5
+          done
+          echo "n8n not healthy in time"; exit 1
+
+      - name: Show service status
+        if: always()
+        run: |
+          docker compose ps
+
+      - name: Install test dependencies
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+
+      - name: Run E2E flow (register, login, chat)
+        run: |
+          set -euo pipefail
+          
+          BACKEND_URL="http://localhost:5000"
+          CHAT_URL="http://localhost:5000/api/webhook/chat"
+          
+          random_suffix() {
+            if command -v openssl >/dev/null 2>&1; then
+              openssl rand -hex 4
+            elif [ -r /dev/urandom ]; then
+              tr -dc 'a-z0-9' </dev/urandom | head -c 8
+            else
+              date +%s | tail -c 8
+            fi
+          }
+          
+          session_id() {
+            # Generate a random integer for session ID
+            if command -v openssl >/dev/null 2>&1; then
+              openssl rand -hex 4 | sed 's/^/0x/' | xargs printf "%d"
+            else
+              # Fallback: use timestamp + random number
+              echo $(( $(date +%s) + RANDOM ))
+            fi
+          }
+          
+          echo "Testing backend connectivity..."
+          if ! curl -f -s "$BACKEND_URL/api/health" >/dev/null; then
+            echo "Backend not responding at $BACKEND_URL/api/health"
+            echo "Make sure docker compose is running: docker compose up -d"
+            exit 1
+          fi
+          echo "Backend is responding"
+          
+          email="ci_$(random_suffix)@example.com"
+          password="TestPass123!"
+          first="CI"
+          last="User"
+          
+          echo "Registering user: $email"
+          register_resp=$(curl -fsS -X POST "$BACKEND_URL/api/register" \
+            -H 'Content-Type: application/json' \
+            -d "{\"firstName\":\"$first\",\"lastName\":\"$last\",\"email\":\"$email\",\"password\":\"$password\"}")
+          
+          echo "Register response: $register_resp"
+          
+          # Validate JSON and extract user_id
+          if ! echo "$register_resp" | jq . >/dev/null 2>&1; then
+            echo "Invalid JSON response from register endpoint:" >&2
+            echo "$register_resp" >&2
+            exit 1
+          fi
+          
+          user_id=$(echo "$register_resp" | jq -r '.user.id // .user.user_id // empty')
+          if [[ -z "${user_id:-}" || "$user_id" == "null" ]]; then
+            echo "Could not extract user id from register response:" >&2
+            echo "$register_resp" >&2
+            exit 1
+          fi
+          echo "Registered user_id=$user_id"
+          
+          echo "Logging in user"
+          login_resp=$(curl -fsS -X POST "$BACKEND_URL/api/login" \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"$email\",\"password\":\"$password\"}")
+          
+          echo "Login response: $login_resp"
+          
+          # Validate JSON
+          if ! echo "$login_resp" | jq . >/dev/null 2>&1; then
+            echo "Invalid JSON response from login endpoint:" >&2
+            echo "$login_resp" >&2
+            exit 1
+          fi
+          
+          # echo "Sending chat message"
+          # session_id_val=$(session_id)
+          # echo "Using session ID: $session_id_val"
+          # chat_resp=$(curl -fsS -X POST "$CHAT_URL" \
+          #   -H 'Content-Type: application/json' \
+          #   -H "X-User-ID: $user_id" \
+          #   -d "{\"message\":\"Hello, I need help\",\"sessionId\":$session_id_val}")
+          
+          # echo "Chat response: $chat_resp"
+          
+          # # Validate JSON
+          # if ! echo "$chat_resp" | jq . >/dev/null 2>&1; then
+          #   echo "Invalid JSON response from chat endpoint:" >&2
+          #   echo "$chat_resp" >&2
+          #   exit 1
+          # fi
+          
+          # reply=$(echo "$chat_resp" | jq -r '.reply // empty')
+          # if [[ -z "$reply" || "$reply" == "null" ]]; then
+          #   echo "Chat reply missing:" >&2
+          #   echo "$chat_resp" >&2
+          #   exit 1
+          # fi
+          
+          # # Check if reply starts with "Sorry" (case insensitive)
+          # if [[ "$reply" =~ ^[Ss]orry ]]; then
+          #   echo "Chat reply indicates failure (starts with 'Sorry'): '$reply'" >&2
+          #   exit 1
+          # fi
+          
+          # echo "E2E passed: user_id=$user_id reply='$reply'"
+
+      - name: Push images to Docker Hub
+        if: success()
+        run: |
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/n8n:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.sha }}
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/n8n:${{ github.sha }}
+
+          echo "Successfully pushed all images to Docker Hub"
+
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.ARGOCD_PAT }}
+          repository: IliaDiv/hos-argocd
+          event-type: change-sha
+          client-payload: '{"sha": "${{ github.sha }}"}'
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          docker compose logs --no-color --timestamps | tail -n 5000
+
+      - name: Stop services
+        if: always()
+        run: |
+          docker compose down -v

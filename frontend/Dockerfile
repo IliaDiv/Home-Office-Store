@@ -1,39 +1,14 @@
-FROM node:18-alpine AS base
-
-FROM base AS deps
+FROM node:18-slim AS builder
 WORKDIR /app
-
-COPY package.json package-lock.json* ./
-RUN npm ci --only=production && npm cache clean --force
-
-FROM base AS builder
-WORKDIR /app
-COPY package.json package-lock.json* ./
+COPY package*.json ./
 RUN npm ci
-
 COPY . .
-
-# API URL will be set via environment variables or config
-
 RUN npm run build
 
-FROM base AS runner
-WORKDIR /app
-
-RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-
-RUN mkdir .next && chown nextjs:nodejs .next
-
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
-EXPOSE 3000
-
-ENV PORT="3000"
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
+FROM nginx:alpine
+COPY nginx.conf.template /nginx.conf.template
+COPY start-nginx.sh /start-nginx.sh
+RUN chmod +x /start-nginx.sh
+COPY --from=builder /app/out /usr/share/nginx/html
+EXPOSE 80
+CMD ["/start-nginx.sh"]

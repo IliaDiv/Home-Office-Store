@@ -26,14 +26,13 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-5-mini",
+          "value": "gpt-5-mini-2025-08-07",
           "mode": "list",
-          "cachedResultName": "gpt-5-mini"
+          "cachedResultName": "gpt-5-mini-2025-08-07"
         },
         "options": {
           "maxTokens": 2500,
-          "responseFormat": "json_object",
-          "temperature": 0.5
+          "responseFormat": "json_object"
         }
       },
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",

@@ -98,7 +98,9 @@ export default function RegisterPage() {
         // Registration successful
         console.log("Registration successful:", data)
         // Redirect to login page or show success message
-        window.location.href = '/login?registered=true'
+        const origin = typeof window !== 'undefined' ? window.location.origin : ''
+        // Ensure trailing slash per next.config.js (trailingSlash: true)
+        window.location.href = `${origin}/login/?registered=true`
       } else {
         // Registration failed
         setErrors(prev => ({ ...prev, general: data.error || "Registration failed" }))
@@ -228,23 +230,23 @@ export default function RegisterPage() {
                   </div>
                   {errors.confirmPassword && <p className="text-red-500 text-sm">{errors.confirmPassword}</p>}
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="terms"
-                    checked={formData.agreeToTerms}
-                    onCheckedChange={(checked) => setFormData({ ...formData, agreeToTerms: checked as boolean })}
-                  />
-                  <Label htmlFor="terms" className="text-sm cursor-pointer">
-                    I agree to the{" "}
-                    <Link href="/terms" className="text-primary hover:underline">
-                      Terms of Service
-                    </Link>{" "}
-                    and{" "}
-                    <Link href="/privacy" className="text-primary hover:underline">
-                      Privacy Policy
-                    </Link>
-                  </Label>
-                </div>
+                <div className="flex items-center space-x-2 p-3 rounded-lg border border-primary/40 bg-primary/5">
+                <Checkbox
+                  id="terms"
+                  checked={formData.agreeToTerms}
+                  onCheckedChange={(checked) => setFormData({ ...formData, agreeToTerms: checked as boolean })}
+                />
+                <Label htmlFor="terms" className="text-sm cursor-pointer font-medium">
+                  I agree to the{" "}
+                  <Link href="/terms" className="text-primary font-semibold underline">
+                    Terms of Service
+                  </Link>{" "}
+                  and{" "}
+                  <Link href="/privacy" className="text-primary font-semibold underline">
+                    Privacy Policy
+                  </Link>
+                </Label>
+              </div>
               </CardContent>
               <CardFooter className="flex flex-col space-y-4">
                 <Button type="submit" className="w-full" disabled={!formData.agreeToTerms || isLoading}>
