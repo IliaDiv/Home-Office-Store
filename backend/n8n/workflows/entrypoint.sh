@@ -71,18 +71,11 @@ echo "Setting up credentials from environment variables..."
 # Create credentials directory if it doesn't exist
 mkdir -p /home/node/.n8n/credentials
 
-# Create OpenAI credentials file from environment variable, only set if not already set
-if [ -z "$OPENAI_API_KEY" ]; then
-    if [ -f /mnt/secrets-store/n8n/openai ]; then
-        echo "Reading OpenAI API key from secrets store..."
-        export OPENAI_API_KEY=$(jq -r '."openai-api-key"' /mnt/secrets-store/n8n/openai)
-    else
-        echo "⚠️  Warning: OPENAI_API_KEY not found in secrets store or environment"
-    fi
-else
-    echo "Using OpenAI API key from environment variable..."
+# Try to read OpenAI key from secrets store first
+if [ -f /mnt/secrets-store/n8n/openai ]; then
+    echo "Reading OpenAI API key from secrets store..."
+    export OPENAI_API_KEY=$(jq -r '."open_ai_api_key"' /mnt/secrets-store/n8n/openai)
 fi
-
 
 if [ -n "$OPENAI_API_KEY" ]; then
   OPENAI_CREDS_FILE="/home/node/.n8n/credentials/openai-env-credentials.json"
@@ -117,7 +110,7 @@ cat > "$POSTGRES_CREDS_FILE" << EOF
       "user": "$DB_POSTGRESDB_USER",
       "password": "$DB_POSTGRESDB_PASSWORD",
       "ssl": "disable",
-      "allowUnauthorizedCerts": true
+      "allowUnauthorizedCerts": false
     }
   }
 ]
