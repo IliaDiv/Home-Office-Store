@@ -110,7 +110,7 @@ cat > "$POSTGRES_CREDS_FILE" << EOF
       "user": "$DB_POSTGRESDB_USER",
       "password": "$DB_POSTGRESDB_PASSWORD",
       "ssl": "disable",
-      "allowUnauthorizedCerts": false
+      "allowUnauthorizedCerts": true
     }
   }
 ]
