@@ -74,7 +74,7 @@ mkdir -p /home/node/.n8n/credentials
 # Try to read OpenAI key from secrets store first
 if [ -f /mnt/secrets-store/n8n/openai ]; then
     echo "Reading OpenAI API key from secrets store..."
-    export OPENAI_API_KEY=$(jq -r '."open_ai_api_key"' /mnt/secrets-store/n8n/openai)
+    export OPENAI_API_KEY=$(jq -r '."openai-api-key"' /mnt/secrets-store/n8n/openai)
 fi
 
 if [ -n "$OPENAI_API_KEY" ]; then
