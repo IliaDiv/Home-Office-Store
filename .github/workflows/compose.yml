@@ -47,7 +47,7 @@ jobs:
           # Tag images with SHA suffix
           docker tag hos-code-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
           docker tag hos-code-backend-svc:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.sha }}
-          docker tag hos-code-8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:${{ github.sha }}
+          docker tag hos-code-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:${{ github.sha }}
           docker tag hos-code-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
           docker tag hos-code-store-backend-svc:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
           docker tag hos-code-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:latest
