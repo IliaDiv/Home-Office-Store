@@ -45,12 +45,12 @@ jobs:
           docker compose build
           
           # Tag images with SHA suffix
-          docker tag home-office-store-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
-          docker tag home-office-store-backend-svc:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.sha }}
-          docker tag home-office-store-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:${{ github.sha }}
-          docker tag home-office-store-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
-          docker tag home-office-store-backend-svc:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
-          docker tag home-office-store-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:latest
+          docker tag hos-code-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:${{ github.sha }}
+          docker tag hos-code-backend-svc:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:${{ github.sha }}
+          docker tag hos-code-8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:${{ github.sha }}
+          docker tag hos-code-frontend:latest ${{ secrets.DOCKERHUB_USERNAME }}/frontend:latest
+          docker tag hos-code-store-backend-svc:latest ${{ secrets.DOCKERHUB_USERNAME }}/backend:latest
+          docker tag hos-code-n8n:latest ${{ secrets.DOCKERHUB_USERNAME }}/n8n:latest
 
       - name: Start services
         run: |
