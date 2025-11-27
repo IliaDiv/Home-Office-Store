@@ -60,7 +60,7 @@ jobs:
         run: |
           set -e
           for i in {1..30}; do
-            STATUS=$(docker inspect --format='{{json .State.Health.Status}}' home-office-store-postgres-1 2>/dev/null || true)
+            STATUS=$(docker inspect --format='{{json .State.Health.Status}}' hos-code-postgres-1 2>/dev/null || true)
             if [ "$STATUS" = "\"healthy\"" ]; then
               echo "Postgres is healthy"; break
             fi
