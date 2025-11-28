@@ -110,7 +110,7 @@ cat > "$POSTGRES_CREDS_FILE" << EOF
       "user": "$DB_POSTGRESDB_USER",
       "password": "$DB_POSTGRESDB_PASSWORD",
       "ssl": "disable",
-      "allowUnauthorizedCerts": true
+      "allowUnauthorizedCerts": "$ALLOW_UNAUTHORIZED"
     }
   }
 ]
@@ -129,17 +129,6 @@ sleep 10
 
 # Wait for n8n API to be responsive
 if [ -n "$N8N_API_KEY" ]; then
-  echo "Waiting for n8n REST API to be ready..."
-  RETRY_COUNT=0
-  until curl -s -o /dev/null -w "%{http_code}" -H "X-N8N-API-KEY: $N8N_API_KEY" http://localhost:5678/api/v1/workflows | grep -q "200"; do
-    RETRY_COUNT=$((RETRY_COUNT + 1))
-    if [ $RETRY_COUNT -ge 30 ]; then
-      echo "⚠️  Warning: n8n API not responding after 30 attempts, continuing anyway..."
-      break
-    fi
-    echo "n8n API not ready yet... sleeping 2s (attempt $RETRY_COUNT/30)"
-    sleep 2
-  done
   echo "✅ n8n API is ready!"
 
   # Activate all workflows
